@@ -253,12 +253,27 @@ export function usePOS() {
         if (costsError) throw costsError;
       }
 
-      // Update stock
+      // Update stock by reducing quantities sold
       for (const item of cartItems) {
-        const { error: stockError } = await supabase.rpc('update_stock_on_sale', {
-          p_variant_id: item.product_variant_id,
-          p_quantity: item.quantity,
-        });
+        // Get current stock first
+        const { data: currentVariant, error: getError } = await supabase
+          .from('product_variants')
+          .select('estoque_atual')
+          .eq('id', item.product_variant_id)
+          .single();
+
+        if (getError) throw getError;
+
+        const newStock = currentVariant.estoque_atual - item.quantity;
+        if (newStock < 0) {
+          throw new Error(`Estoque insuficiente para o produto ${item.name}`);
+        }
+
+        // Update stock
+        const { error: stockError } = await supabase
+          .from('product_variants')
+          .update({ estoque_atual: newStock })
+          .eq('id', item.product_variant_id);
 
         if (stockError) throw stockError;
       }

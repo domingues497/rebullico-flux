@@ -705,6 +705,10 @@ export type Database = {
         Args: { user_id: string }
         Returns: string
       }
+      update_stock_on_sale: {
+        Args: { p_quantity: number; p_variant_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       payable_status: "ABERTO" | "PAGO" | "VENCIDO"
