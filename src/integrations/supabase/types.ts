@@ -488,6 +488,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "sale_items_product_variant_id_fkey"
+            columns: ["product_variant_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_balance"
+            referencedColumns: ["variant_id"]
+          },
+          {
             foreignKeyName: "sale_items_sale_id_fkey"
             columns: ["sale_id"]
             isOneToOne: false
@@ -642,6 +649,13 @@ export type Database = {
             referencedRelation: "product_variants"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "stock_entry_items_product_variant_id_fkey"
+            columns: ["product_variant_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_balance"
+            referencedColumns: ["variant_id"]
+          },
         ]
       }
       suppliers: {
@@ -670,7 +684,21 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      v_stock_balance: {
+        Row: {
+          cor: string | null
+          ean: string | null
+          estoque_atual: number | null
+          estoque_minimo: number | null
+          is_low_stock: boolean | null
+          preco_base: number | null
+          product_name: string | null
+          sku: string | null
+          tamanho: string | null
+          variant_id: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       get_user_role: {
