@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Layout } from "@/components/layout/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,10 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { BarcodeScanner } from "@/components/pos/BarcodeScanner";
 import { NumericKeypad } from "@/components/pos/NumericKeypad";
+import { PaymentModal } from "@/components/pos/PaymentModal";
+import { usePOS } from "@/hooks/usePOS";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 import { 
   ShoppingCart,
   Search,
@@ -20,85 +24,139 @@ import {
   Users
 } from "lucide-react";
 
-interface CartItem {
+interface Product {
   id: string;
   name: string;
   sku: string;
   price: number;
-  quantity: number;
-  discount?: number;
+  stock: number;
+  product_variant_id: string;
 }
 
 const POS = () => {
-  const [cart, setCart] = useState<CartItem[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [discount, setDiscount] = useState(0);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [showKeypad, setShowKeypad] = useState(false);
-  const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [customers, setCustomers] = useState<any[]>([]);
+  const { toast } = useToast();
+  
+  const {
+    cartItems,
+    selectedCustomer,
+    discount,
+    subtotal,
+    totalDiscount,
+    total,
+    isProcessing,
+    setSelectedCustomer,
+    setDiscount,
+    addToCart,
+    updateQuantity,
+    removeItem,
+    clearCart,
+    processSale,
+  } = usePOS();
 
-  // Mock products
-  const products = [
-    { id: "1", name: "Camisa Polo Masculina", sku: "CM001", price: 89.90, stock: 15 },
-    { id: "2", name: "Calça Jeans Feminina", sku: "CJ002", price: 129.90, stock: 8 },
-    { id: "3", name: "Vestido Floral", sku: "VF003", price: 159.90, stock: 12 },
-    { id: "4", name: "Bermuda Masculina", sku: "BM004", price: 69.90, stock: 20 },
-  ];
+  // Load products and customers on mount
+  useEffect(() => {
+    loadProducts();
+    loadCustomers();
+  }, []);
 
-  const addToCart = (product: typeof products[0]) => {
-    const existingItem = cart.find(item => item.sku === product.sku);
-    if (existingItem) {
-      setCart(cart.map(item => 
-        item.sku === product.sku 
-          ? { ...item, quantity: item.quantity + 1 }
-          : item
-      ));
-    } else {
-      setCart([...cart, {
-        id: product.id,
-        name: product.name,
-        sku: product.sku,
-        price: product.price,
-        quantity: 1
-      }]);
+  const loadProducts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('product_variants')
+        .select(`
+          id,
+          sku,
+          preco_base,
+          estoque_atual,
+          product:products(nome)
+        `)
+        .gt('estoque_atual', 0);
+
+      if (error) throw error;
+
+      const formattedProducts = data.map(variant => ({
+        id: variant.id,
+        product_variant_id: variant.id,
+        name: variant.product.nome,
+        sku: variant.sku,
+        price: Number(variant.preco_base),
+        stock: variant.estoque_atual,
+      }));
+
+      setProducts(formattedProducts);
+    } catch (error: any) {
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar os produtos",
+        variant: "destructive"
+      });
     }
   };
 
-  const updateQuantity = (sku: string, quantity: number) => {
-    if (quantity <= 0) {
-      setCart(cart.filter(item => item.sku !== sku));
-    } else {
-      setCart(cart.map(item => 
-        item.sku === sku ? { ...item, quantity } : item
-      ));
+  const loadCustomers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('customers')
+        .select(`
+          id,
+          nome,
+          grupo_pessoas_id,
+          customer_group:customer_groups(nome, desconto_percentual)
+        `);
+
+      if (error) throw error;
+      setCustomers(data || []);
+    } catch (error: any) {
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar os clientes",
+        variant: "destructive"
+      });
     }
   };
 
-  const removeFromCart = (sku: string) => {
-    setCart(cart.filter(item => item.sku !== sku));
+  const handleAddToCart = (product: Product) => {
+    addToCart(product.product_variant_id);
   };
-
-  const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const discountAmount = subtotal * (discount / 100);
-  const total = subtotal - discountAmount;
 
   const handleBarcodeScanned = (code: string) => {
-    // Mock barcode lookup
-    const product = products.find(p => p.sku === code);
+    const product = products.find(p => p.sku === code || p.id === code);
     if (product) {
-      addToCart(product);
+      handleAddToCart(product);
+    } else {
+      toast({
+        title: "Produto não encontrado",
+        description: `Código ${code} não foi encontrado`,
+        variant: "destructive"
+      });
     }
   };
 
-  const handleCustomerSelect = () => {
-    // Mock customer selection - would open customer modal
-    setSelectedCustomer({
-      name: "Maria Silva",
-      group: "VIP",
-      discount: 15
-    });
-    // Apply automatic discount based on customer group
-    setDiscount(15);
+  const handleCustomerSelect = (customer: any) => {
+    setSelectedCustomer(customer);
+  };
+
+  const handlePayment = async (payments: any[], observations?: string) => {
+    try {
+      await processSale(payments, observations);
+      setIsPaymentModalOpen(false);
+      toast({
+        title: "Venda realizada!",
+        description: "Venda processada com sucesso",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Erro na venda",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
   };
 
   const filteredProducts = products.filter(product =>
@@ -137,7 +195,7 @@ const POS = () => {
               <Card
                 key={product.id}
                 className="card-elevated hover:shadow-xl transition-all cursor-pointer"
-                onClick={() => addToCart(product)}
+                onClick={() => handleAddToCart(product)}
               >
                 <CardContent className="p-4">
                   <div className="space-y-2">
@@ -172,16 +230,25 @@ const POS = () => {
                 <div>
                   {selectedCustomer ? (
                     <div>
-                      <div className="font-medium">{selectedCustomer.name}</div>
+                      <div className="font-medium">{selectedCustomer.nome}</div>
                       <div className="text-sm text-muted-foreground">
-                        Grupo {selectedCustomer.group} - {selectedCustomer.discount}% desconto
+                        {selectedCustomer.customer_group?.nome || 'Cliente'} - {selectedCustomer.customer_group?.desconto_percentual || 0}% desconto
                       </div>
                     </div>
                   ) : (
                     <div className="text-muted-foreground">Nenhum cliente selecionado</div>
                   )}
                 </div>
-                <Button variant="outline" size="sm" onClick={handleCustomerSelect}>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => {
+                    // For demo, select first customer
+                    if (customers.length > 0) {
+                      handleCustomerSelect(customers[0]);
+                    }
+                  }}
+                >
                   <Users className="mr-2 h-4 w-4" />
                   {selectedCustomer ? "Trocar" : "Selecionar"}
                 </Button>
@@ -193,30 +260,30 @@ const POS = () => {
             <CardHeader>
               <CardTitle className="flex items-center">
                 <ShoppingCart className="mr-2 h-5 w-5" />
-                Carrinho ({cart.length})
+                Carrinho ({cartItems.length})
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               {/* Cart Items */}
               <div className="space-y-3 max-h-64 overflow-y-auto">
-                {cart.length === 0 ? (
+                {cartItems.length === 0 ? (
                   <p className="text-center text-muted-foreground py-8">
                     Carrinho vazio
                   </p>
                 ) : (
-                  cart.map((item) => (
-                    <div key={item.sku} className="flex items-center justify-between p-2 bg-muted/30 rounded-lg">
+                  cartItems.map((item) => (
+                    <div key={item.id} className="flex items-center justify-between p-2 bg-muted/30 rounded-lg">
                       <div className="flex-1">
                         <h4 className="font-medium text-sm">{item.name}</h4>
                         <p className="text-xs text-muted-foreground">{item.sku}</p>
-                        <p className="text-sm font-semibold">R$ {item.price.toFixed(2)}</p>
+                        <p className="text-sm font-semibold">R$ {item.final_price.toFixed(2)}</p>
                       </div>
                       <div className="flex items-center space-x-2">
                         <Button
                           size="icon"
                           variant="outline"
                           className="h-6 w-6"
-                          onClick={() => updateQuantity(item.sku, item.quantity - 1)}
+                          onClick={() => updateQuantity(item.product_variant_id, item.quantity - 1)}
                         >
                           <Minus className="h-3 w-3" />
                         </Button>
@@ -225,7 +292,7 @@ const POS = () => {
                           size="icon"
                           variant="outline"
                           className="h-6 w-6"
-                          onClick={() => updateQuantity(item.sku, item.quantity + 1)}
+                          onClick={() => updateQuantity(item.product_variant_id, item.quantity + 1)}
                         >
                           <Plus className="h-3 w-3" />
                         </Button>
@@ -233,7 +300,7 @@ const POS = () => {
                           size="icon"
                           variant="destructive"
                           className="h-6 w-6"
-                          onClick={() => removeFromCart(item.sku)}
+                          onClick={() => removeItem(item.product_variant_id)}
                         >
                           <Trash2 className="h-3 w-3" />
                         </Button>
@@ -270,10 +337,10 @@ const POS = () => {
                   <span>Subtotal:</span>
                   <span>R$ {subtotal.toFixed(2)}</span>
                 </div>
-                {discount > 0 && (
+                {totalDiscount > 0 && (
                   <div className="flex justify-between text-sm text-destructive">
-                    <span>Desconto ({discount}%):</span>
-                    <span>-R$ {discountAmount.toFixed(2)}</span>
+                    <span>Desconto:</span>
+                    <span>-R$ {totalDiscount.toFixed(2)}</span>
                   </div>
                 )}
                 <div className="flex justify-between text-lg font-bold">
@@ -286,17 +353,19 @@ const POS = () => {
               <div className="space-y-2">
                 <Button 
                   className="w-full btn-pos-primary"
-                  disabled={cart.length === 0}
+                  disabled={cartItems.length === 0 || isProcessing}
+                  onClick={() => setIsPaymentModalOpen(true)}
                 >
                   <DollarSign className="mr-2 h-4 w-4" />
-                  Finalizar - R$ {total.toFixed(2)}
+                  {isProcessing ? "Processando..." : `Finalizar - R$ ${total.toFixed(2)}`}
                 </Button>
                 
                 <div className="grid grid-cols-2 gap-2">
                   <Button 
                     variant="outline"
                     className="btn-pos"
-                    disabled={cart.length === 0}
+                    disabled={cartItems.length === 0}
+                    onClick={() => setIsPaymentModalOpen(true)}
                   >
                     <CreditCard className="mr-2 h-4 w-4" />
                     Cartão
@@ -305,7 +374,7 @@ const POS = () => {
                     variant="outline"
                     className="btn-pos"
                     onClick={() => setShowKeypad(!showKeypad)}
-                    disabled={cart.length === 0}
+                    disabled={cartItems.length === 0}
                   >
                     🔢 Teclado
                   </Button>
@@ -331,6 +400,15 @@ const POS = () => {
         isOpen={isScannerOpen}
         onClose={() => setIsScannerOpen(false)}
         onCodeScanned={handleBarcodeScanned}
+      />
+
+      {/* Payment Modal */}
+      <PaymentModal
+        isOpen={isPaymentModalOpen}
+        onClose={() => setIsPaymentModalOpen(false)}
+        total={total}
+        onConfirm={handlePayment}
+        isProcessing={isProcessing}
       />
     </Layout>
   );
