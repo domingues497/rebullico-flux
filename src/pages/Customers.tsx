@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Layout } from "@/components/layout/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,72 +21,64 @@ import {
   Phone,
   Mail
 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 const Customers = () => {
   const [searchTerm, setSearchTerm] = useState("");
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [customerGroups, setCustomerGroups] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
-  // Mock customers data
-  const customers = [
-    {
-      id: "1",
-      name: "Maria Silva Santos",
-      email: "maria.silva@email.com",
-      phone: "(11) 99999-9999",
-      document: "123.456.789-00",
-      group: "VIP",
-      groupDiscount: 15,
-      totalPurchases: 2840.50,
-      lastPurchase: "2024-01-15",
-      status: "Ativo"
-    },
-    {
-      id: "2",
-      name: "João Pedro Oliveira",
-      email: "joao.pedro@email.com",
-      phone: "(11) 88888-8888",
-      document: "987.654.321-00",
-      group: "Regular",
-      groupDiscount: 5,
-      totalPurchases: 890.30,
-      lastPurchase: "2024-01-10",
-      status: "Ativo"
-    },
-    {
-      id: "3",
-      name: "Ana Carolina Lima",
-      email: "ana.lima@email.com",
-      phone: "(11) 77777-7777",
-      document: "456.789.123-00",
-      group: "VIP",
-      groupDiscount: 15,
-      totalPurchases: 4250.80,
-      lastPurchase: "2023-12-28",
-      status: "Ativo"
-    },
-    {
-      id: "4",
-      name: "Carlos Eduardo Santos",
-      email: "carlos.santos@email.com",
-      phone: "(11) 66666-6666",
-      document: "789.123.456-00",
-      group: "Regular",
-      groupDiscount: 5,
-      totalPurchases: 156.90,
-      lastPurchase: "2023-11-15",
-      status: "Inativo"
-    },
-  ];
+  useEffect(() => {
+    fetchCustomers();
+    fetchCustomerGroups();
+  }, []);
 
-  const customerGroups = [
-    { name: "VIP", discount: 15, count: 2, color: "bg-yellow-500" },
-    { name: "Regular", discount: 5, count: 2, color: "bg-blue-500" },
-  ];
+  const fetchCustomers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('customers')
+        .select(`
+          *,
+          customer_groups!grupo_pessoas_id(nome, desconto_percentual)
+        `)
+        .order('nome');
+      
+      if (error) throw error;
+      setCustomers(data || []);
+    } catch (error: any) {
+      console.error('Error fetching customers:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar os clientes",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchCustomerGroups = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('customer_groups')
+        .select('*')
+        .order('nome');
+      
+      if (error) throw error;
+      setCustomerGroups(data || []);
+    } catch (error: any) {
+      console.error('Error fetching customer groups:', error);
+    }
+  };
 
   const filteredCustomers = customers.filter(customer =>
-    customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    customer.phone.includes(searchTerm) ||
-    customer.document.includes(searchTerm)
+    customer.nome?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    customer.telefone?.includes(searchTerm) ||
+    customer.whatsapp?.includes(searchTerm) ||
+    customer.cpf?.includes(searchTerm)
   );
 
   return (
@@ -106,16 +98,18 @@ const Customers = () => {
             </CardContent>
           </Card>
 
-          {customerGroups.map((group) => (
-            <Card key={group.name} className="card-elevated">
+          {customerGroups.map((group, index) => (
+            <Card key={group.id} className="card-elevated">
               <CardContent className="p-4">
                 <div className="flex items-center space-x-3">
-                  <div className={`w-8 h-8 rounded-full ${group.color} flex items-center justify-center`}>
-                    <span className="text-white text-sm font-semibold">{group.discount}%</span>
+                  <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
+                    <span className="text-white text-sm font-semibold">{Number(group.desconto_percentual)}%</span>
                   </div>
                   <div>
-                    <p className="text-2xl font-bold">{group.count}</p>
-                    <p className="text-sm text-muted-foreground">Grupo {group.name}</p>
+                    <p className="text-2xl font-bold">
+                      {customers.filter(c => c.grupo_pessoas_id === group.id).length}
+                    </p>
+                    <p className="text-sm text-muted-foreground">Grupo {group.nome}</p>
                   </div>
                 </div>
               </CardContent>
@@ -160,64 +154,74 @@ const Customers = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredCustomers.map((customer) => (
-                  <TableRow key={customer.id}>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">{customer.name}</div>
-                        <div className="text-sm text-muted-foreground flex items-center mt-1">
-                          <Mail className="h-3 w-3 mr-1" />
-                          {customer.email}
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center text-sm">
-                        <Phone className="h-3 w-3 mr-1" />
-                        {customer.phone}
-                      </div>
-                    </TableCell>
-                    <TableCell className="font-mono text-sm">
-                      {customer.document}
-                    </TableCell>
-                    <TableCell>
-                      <Badge 
-                        variant={customer.group === "VIP" ? "default" : "secondary"}
-                        className="flex items-center space-x-1"
-                      >
-                        <span>{customer.group}</span>
-                        <span className="text-xs">({customer.groupDiscount}%)</span>
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="font-semibold">
-                        R$ {customer.totalPurchases.toFixed(2)}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm">
-                        {new Date(customer.lastPurchase).toLocaleDateString('pt-BR')}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge 
-                        variant={customer.status === "Ativo" ? "default" : "secondary"}
-                      >
-                        {customer.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex space-x-2">
-                        <Button variant="outline" size="icon">
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button variant="outline" size="icon">
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                      </div>
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center">
+                      Carregando clientes...
                     </TableCell>
                   </TableRow>
-                ))}
+                ) : filteredCustomers.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center">
+                      Nenhum cliente encontrado
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredCustomers.map((customer) => (
+                    <TableRow key={customer.id}>
+                      <TableCell>
+                        <div className="font-medium">{customer.nome}</div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="space-y-1">
+                          {customer.telefone && (
+                            <div className="flex items-center text-sm">
+                              <Phone className="h-3 w-3 mr-1" />
+                              {customer.telefone}
+                            </div>
+                          )}
+                          {customer.whatsapp && (
+                            <div className="text-xs text-muted-foreground">
+                              WhatsApp: {customer.whatsapp}
+                            </div>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="font-mono text-sm">
+                        {customer.cpf || '-'}
+                      </TableCell>
+                      <TableCell>
+                        {customer.customer_groups ? (
+                          <Badge variant="default" className="flex items-center space-x-1">
+                            <span>{customer.customer_groups.nome}</span>
+                            <span className="text-xs">({Number(customer.customer_groups.desconto_percentual)}%)</span>
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary">Sem grupo</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="font-semibold">R$ 0,00</div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-sm">-</div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="default">Ativo</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex space-x-2">
+                          <Button variant="outline" size="icon">
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button variant="outline" size="icon">
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
           </CardContent>
@@ -230,17 +234,21 @@ const Customers = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {customers.slice(0, 3).map((customer) => (
+              {filteredCustomers.slice(0, 3).map((customer) => (
                 <div key={customer.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
                   <div>
-                    <div className="font-medium">{customer.name}</div>
+                    <div className="font-medium">{customer.nome}</div>
                     <div className="text-sm text-muted-foreground">
-                      Última compra: {new Date(customer.lastPurchase).toLocaleDateString('pt-BR')}
+                      Cadastrado em: {new Date(customer.created_at).toLocaleDateString('pt-BR')}
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="font-semibold">R$ {customer.totalPurchases.toFixed(2)}</div>
-                    <div className="text-sm text-muted-foreground">Total em compras</div>
+                    <div className="font-semibold">
+                      {customer.customer_groups?.nome || 'Sem grupo'}
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      {customer.telefone || customer.whatsapp || '-'}
+                    </div>
                   </div>
                 </div>
               ))}

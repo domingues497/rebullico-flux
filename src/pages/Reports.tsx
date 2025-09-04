@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { Layout } from "@/components/layout/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,55 +22,210 @@ import {
   Users,
   ShoppingCart
 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 const Reports = () => {
-  // Mock data for reports
-  const todayStats = {
-    sales: 2847.50,
-    transactions: 15,
-    items: 28,
-    customers: 12
+  const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
+  const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
+  const [todayStats, setTodayStats] = useState({
+    sales: 0,
+    transactions: 0,
+    items: 0,
+    customers: 0
+  });
+  const [topProducts, setTopProducts] = useState<any[]>([]);
+  const [recentSales, setRecentSales] = useState<any[]>([]);
+  const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
+  const [lowStockItems, setLowStockItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    fetchReports();
+  }, []);
+
+  const fetchReports = async () => {
+    try {
+      await Promise.all([
+        fetchTodayStats(),
+        fetchTopProducts(),
+        fetchRecentSales(),
+        fetchPaymentMethodStats(),
+        fetchLowStockItems()
+      ]);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const topProducts = [
-    { name: "Camisa Polo Masculina", sold: 15, revenue: 1348.50 },
-    { name: "Calça Jeans Feminina", sold: 8, revenue: 1039.20 },
-    { name: "Vestido Floral", sold: 6, revenue: 959.40 },
-    { name: "Bermuda Masculina", sold: 12, revenue: 838.80 },
-  ];
+  const fetchTodayStats = async () => {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      
+      const { data: salesData, error } = await supabase
+        .from('sales')
+        .select(`
+          total_liquido,
+          sale_items!inner(quantidade)
+        `)
+        .gte('data', today)
+        .lt('data', new Date(new Date().getTime() + 24*60*60*1000).toISOString());
 
-  const recentSales = [
-    {
-      id: "VD-0001",
-      customer: "Maria Silva",
-      total: 289.90,
-      items: 2,
-      payment: "Cartão",
-      time: "14:32"
-    },
-    {
-      id: "VD-0002",
-      customer: "João Pedro",
-      total: 159.90,
-      items: 1,
-      payment: "Dinheiro",
-      time: "14:15"
-    },
-    {
-      id: "VD-0003",
-      customer: "Ana Carolina",
-      total: 419.80,
-      items: 3,
-      payment: "PIX",
-      time: "13:45"
-    },
-  ];
+      if (error) throw error;
 
-  const lowStockItems = [
-    { name: "Camisa Polo - P Azul", current: 2, minimum: 5 },
-    { name: "Calça Jeans - 36 Azul", current: 3, minimum: 10 },
-    { name: "Vestido - P Rosa", current: 1, minimum: 5 },
-  ];
+      const totalSales = salesData?.reduce((sum, sale) => sum + Number(sale.total_liquido), 0) || 0;
+      const totalItems = salesData?.reduce((sum, sale) => 
+        sum + sale.sale_items.reduce((itemSum: number, item: any) => itemSum + item.quantidade, 0), 0) || 0;
+
+      setTodayStats({
+        sales: totalSales,
+        transactions: salesData?.length || 0,
+        items: totalItems,
+        customers: new Set(salesData?.map(s => (s as any).customer_id).filter(Boolean)).size
+      });
+    } catch (error: any) {
+      console.error('Error fetching today stats:', error);
+    }
+  };
+
+  const fetchTopProducts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('sale_items')
+        .select(`
+          quantidade,
+          preco_unit,
+          product_variants!inner(
+            id,
+            sku,
+            products!inner(nome)
+          )
+        `)
+        .gte('created_at', new Date(Date.now() - 30*24*60*60*1000).toISOString());
+
+      if (error) throw error;
+
+      // Group by product and calculate totals
+      const productStats = data?.reduce((acc: any, item: any) => {
+        const productName = item.product_variants.products.nome;
+        if (!acc[productName]) {
+          acc[productName] = { sold: 0, revenue: 0 };
+        }
+        acc[productName].sold += item.quantidade;
+        acc[productName].revenue += item.quantidade * Number(item.preco_unit);
+        return acc;
+      }, {}) || {};
+
+      const topProductsList = Object.entries(productStats)
+        .map(([name, stats]: [string, any]) => ({ name, ...stats }))
+        .sort((a, b) => b.revenue - a.revenue)
+        .slice(0, 4);
+
+      setTopProducts(topProductsList);
+    } catch (error: any) {
+      console.error('Error fetching top products:', error);
+    }
+  };
+
+  const fetchRecentSales = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('sales')
+        .select(`
+          id,
+          total_liquido,
+          data,
+          customers(nome),
+          sale_items(quantidade),
+          payments(tipo)
+        `)
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      if (error) throw error;
+
+      const salesWithDetails = data?.map((sale: any) => ({
+        id: `VD-${sale.id.slice(-4)}`,
+        customer: sale.customers?.nome || 'Cliente não identificado',
+        total: Number(sale.total_liquido),
+        items: sale.sale_items?.reduce((sum: number, item: any) => sum + item.quantidade, 0) || 0,
+        payment: sale.payments?.[0]?.tipo || 'N/A',
+        time: new Date(sale.data).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+      })) || [];
+
+      setRecentSales(salesWithDetails);
+    } catch (error: any) {
+      console.error('Error fetching recent sales:', error);
+    }
+  };
+
+  const fetchPaymentMethodStats = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('payments')
+        .select(`
+          tipo,
+          valor,
+          bandeira
+        `);
+
+      if (error) throw error;
+
+      // Group by payment type
+      const methodStats = data?.reduce((acc: any, payment: any) => {
+        const method = payment.tipo;
+        if (!acc[method]) {
+          acc[method] = { count: 0, total: 0, fee: 0 };
+        }
+        acc[method].count += 1;
+        acc[method].total += Number(payment.valor);
+        return acc;
+      }, {}) || {};
+
+      const methodsList = Object.entries(methodStats).map(([method, stats]: [string, any]) => ({
+        method,
+        count: stats.count,
+        total: stats.total,
+        fee: 0, // Placeholder - would need acquirer_fees integration
+        net: stats.total
+      }));
+
+      setPaymentMethods(methodsList);
+    } catch (error: any) {
+      console.error('Error fetching payment methods:', error);
+    }
+  };
+
+  const fetchLowStockItems = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('v_stock_balance')
+        .select('*')
+        .eq('is_low_stock', true)
+        .limit(10);
+
+      if (error) throw error;
+
+      const lowStockList = data?.map((item: any) => ({
+        name: `${item.product_name}${item.tamanho ? ` - ${item.tamanho}` : ''}${item.cor ? ` ${item.cor}` : ''}`,
+        current: item.estoque_atual,
+        minimum: item.estoque_minimo
+      })) || [];
+
+      setLowStockItems(lowStockList);
+    } catch (error: any) {
+      console.error('Error fetching low stock items:', error);
+    }
+  };
+
+  const handleApplyPeriod = () => {
+    fetchReports();
+    toast({
+      title: "Período aplicado",
+      description: "Relatórios atualizados para o período selecionado"
+    });
+  };
 
   return (
     <Layout title="Relatórios e Análises">
@@ -77,10 +233,20 @@ const Reports = () => {
         {/* Period Selection */}
         <div className="flex flex-col sm:flex-row justify-between gap-4">
           <div className="flex space-x-2">
-            <Input type="date" className="w-40" defaultValue="2024-01-01" />
+            <Input 
+              type="date" 
+              className="w-40" 
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+            />
             <span className="flex items-center text-muted-foreground">até</span>
-            <Input type="date" className="w-40" defaultValue="2024-01-31" />
-            <Button variant="outline">
+            <Input 
+              type="date" 
+              className="w-40" 
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+            />
+            <Button variant="outline" onClick={handleApplyPeriod}>
               <Calendar className="mr-2 h-4 w-4" />
               Aplicar
             </Button>
@@ -154,20 +320,26 @@ const Reports = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {topProducts.map((product, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
-                    <div>
-                      <div className="font-medium">{product.name}</div>
-                      <div className="text-sm text-muted-foreground">
-                        {product.sold} unidades vendidas
+                {loading ? (
+                  <div className="text-center text-muted-foreground">Carregando...</div>
+                ) : topProducts.length === 0 ? (
+                  <div className="text-center text-muted-foreground">Nenhum produto vendido no período</div>
+                ) : (
+                  topProducts.map((product, index) => (
+                    <div key={index} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
+                      <div>
+                        <div className="font-medium">{product.name}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {product.sold} unidades vendidas
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-semibold">R$ {product.revenue.toFixed(2)}</div>
+                        <Badge variant="default">#{index + 1}</Badge>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <div className="font-semibold">R$ {product.revenue.toFixed(2)}</div>
-                      <Badge variant="default">#{index + 1}</Badge>
-                    </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </CardContent>
           </Card>
@@ -179,20 +351,26 @@ const Reports = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {recentSales.map((sale) => (
-                  <div key={sale.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
-                    <div>
-                      <div className="font-medium">{sale.id}</div>
-                      <div className="text-sm text-muted-foreground">
-                        {sale.customer} • {sale.items} itens • {sale.time}
+                {loading ? (
+                  <div className="text-center text-muted-foreground">Carregando...</div>
+                ) : recentSales.length === 0 ? (
+                  <div className="text-center text-muted-foreground">Nenhuma venda recente</div>
+                ) : (
+                  recentSales.map((sale) => (
+                    <div key={sale.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
+                      <div>
+                        <div className="font-medium">{sale.id}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {sale.customer} • {sale.items} itens • {sale.time}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-semibold">R$ {sale.total.toFixed(2)}</div>
+                        <Badge variant="outline">{sale.payment}</Badge>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <div className="font-semibold">R$ {sale.total.toFixed(2)}</div>
-                      <Badge variant="outline">{sale.payment}</Badge>
-                    </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </CardContent>
           </Card>
@@ -215,34 +393,25 @@ const Reports = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                <TableRow>
-                  <TableCell>Dinheiro</TableCell>
-                  <TableCell>5</TableCell>
-                  <TableCell>R$ 847,50</TableCell>
-                  <TableCell>0%</TableCell>
-                  <TableCell>R$ 847,50</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell>Cartão de Crédito</TableCell>
-                  <TableCell>7</TableCell>
-                  <TableCell>R$ 1.245,80</TableCell>
-                  <TableCell>3,5%</TableCell>
-                  <TableCell>R$ 1.202,20</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell>Cartão de Débito</TableCell>
-                  <TableCell>2</TableCell>
-                  <TableCell>R$ 489,90</TableCell>
-                  <TableCell>2,0%</TableCell>
-                  <TableCell>R$ 480,10</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell>PIX</TableCell>
-                  <TableCell>1</TableCell>
-                  <TableCell>R$ 264,30</TableCell>
-                  <TableCell>0%</TableCell>
-                  <TableCell>R$ 264,30</TableCell>
-                </TableRow>
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center">Carregando...</TableCell>
+                  </TableRow>
+                ) : paymentMethods.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center">Nenhuma venda no período</TableCell>
+                  </TableRow>
+                ) : (
+                  paymentMethods.map((method, index) => (
+                    <TableRow key={index}>
+                      <TableCell>{method.method}</TableCell>
+                      <TableCell>{method.count}</TableCell>
+                      <TableCell>R$ {method.total.toFixed(2)}</TableCell>
+                      <TableCell>{method.fee}%</TableCell>
+                      <TableCell>R$ {method.net.toFixed(2)}</TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
           </CardContent>
@@ -258,19 +427,25 @@ const Reports = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {lowStockItems.map((item, index) => (
-                <div key={index} className="flex items-center justify-between p-3 bg-warning/10 rounded-lg border-l-4 border-warning">
-                  <div>
-                    <div className="font-medium">{item.name}</div>
-                    <div className="text-sm text-muted-foreground">
-                      Mínimo recomendado: {item.minimum}
+              {loading ? (
+                <div className="text-center text-muted-foreground">Carregando...</div>
+              ) : lowStockItems.length === 0 ? (
+                <div className="text-center text-success">Nenhum produto com estoque baixo! 🎉</div>
+              ) : (
+                lowStockItems.map((item, index) => (
+                  <div key={index} className="flex items-center justify-between p-3 bg-warning/10 rounded-lg border-l-4 border-warning">
+                    <div>
+                      <div className="font-medium">{item.name}</div>
+                      <div className="text-sm text-muted-foreground">
+                        Mínimo recomendado: {item.minimum}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <Badge variant="destructive">{item.current} em estoque</Badge>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <Badge variant="destructive">{item.current} em estoque</Badge>
-                  </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </CardContent>
         </Card>
