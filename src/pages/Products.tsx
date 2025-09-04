@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Layout } from "@/components/layout/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,60 +19,15 @@ import {
   Eye,
   AlertTriangle
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { useProducts } from "@/hooks/useProducts";
+import { ProductFormModal } from "@/components/products/ProductFormModal";
 
 const Products = () => {
   const [searchTerm, setSearchTerm] = useState("");
-  const [products, setProducts] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const { toast } = useToast();
-
-  useEffect(() => {
-    fetchProducts();
-  }, []);
-
-  const fetchProducts = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('v_stock_balance')
-        .select('*')
-        .order('product_name');
-      
-      if (error) throw error;
-
-      // Group variants by product
-      const groupedProducts = data?.reduce((acc: any[], item: any) => {
-        const existingProduct = acc.find(p => p.id === item.variant_id);
-        if (!existingProduct) {
-          acc.push({
-            id: item.variant_id,
-            name: item.product_name,
-            sku: item.sku,
-            ean: item.ean,
-            price: Number(item.preco_base),
-            stock: item.estoque_atual,
-            minStock: item.estoque_minimo,
-            size: item.tamanho,
-            color: item.cor,
-            isLowStock: item.is_low_stock
-          });
-        }
-        return acc;
-      }, []) || [];
-
-      setProducts(groupedProducts);
-    } catch (error: any) {
-      console.error('Error fetching products:', error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível carregar os produtos",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedProductId, setSelectedProductId] = useState<string>();
+  const [modalMode, setModalMode] = useState<'create' | 'edit' | 'view'>('create');
+  const { products, loading } = useProducts();
 
   const filteredProducts = products.filter(product =>
     product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -81,6 +36,24 @@ const Products = () => {
   );
 
   const lowStockProducts = products.filter(p => p.isLowStock);
+
+  const handleNewProduct = () => {
+    setSelectedProductId(undefined);
+    setModalMode('create');
+    setModalOpen(true);
+  };
+
+  const handleViewProduct = (productId: string) => {
+    setSelectedProductId(productId);
+    setModalMode('view');
+    setModalOpen(true);
+  };
+
+  const handleEditProduct = (productId: string) => {
+    setSelectedProductId(productId);
+    setModalMode('edit');
+    setModalOpen(true);
+  };
 
   return (
     <Layout title="Gestão de Produtos">
@@ -110,7 +83,7 @@ const Products = () => {
               className="pl-10"
             />
           </div>
-          <Button className="btn-pos-primary">
+          <Button className="btn-pos-primary" onClick={handleNewProduct}>
             <Plus className="mr-2 h-4 w-4" />
             Novo Produto
           </Button>
@@ -188,10 +161,18 @@ const Products = () => {
                       </TableCell>
                       <TableCell>
                         <div className="flex space-x-2">
-                          <Button variant="outline" size="icon">
+                          <Button 
+                            variant="outline" 
+                            size="icon"
+                            onClick={() => handleViewProduct(product.id)}
+                          >
                             <Eye className="h-4 w-4" />
                           </Button>
-                          <Button variant="outline" size="icon">
+                          <Button 
+                            variant="outline" 
+                            size="icon"
+                            onClick={() => handleEditProduct(product.id)}
+                          >
                             <Edit className="h-4 w-4" />
                           </Button>
                         </div>
@@ -203,6 +184,13 @@ const Products = () => {
             </Table>
           </CardContent>
         </Card>
+
+        <ProductFormModal
+          open={modalOpen}
+          onOpenChange={setModalOpen}
+          productId={selectedProductId}
+          mode={modalMode}
+        />
 
       </div>
     </Layout>

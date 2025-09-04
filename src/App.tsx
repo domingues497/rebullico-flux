@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import Dashboard from "./pages/Dashboard";
 import POS from "./pages/POS";
 import Products from "./pages/Products";
+import ProductGroups from "./pages/ProductGroups";
 import Customers from "./pages/Customers";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
@@ -46,6 +47,11 @@ function AppRoutes() {
       <Route path="/products" element={
         <ProtectedRoute>
           <Products />
+        </ProtectedRoute>
+      } />
+      <Route path="/product-groups" element={
+        <ProtectedRoute>
+          <ProductGroups />
         </ProtectedRoute>
       } />
       <Route path="/customers" element={
