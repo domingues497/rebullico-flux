@@ -658,6 +658,48 @@ export type Database = {
           },
         ]
       }
+      stock_movements: {
+        Row: {
+          created_at: string
+          id: string
+          observacoes: string | null
+          product_variant_id: string
+          quantidade: number
+          tipo_movimento: Database["public"]["Enums"]["movement_type"]
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          observacoes?: string | null
+          product_variant_id: string
+          quantidade: number
+          tipo_movimento: Database["public"]["Enums"]["movement_type"]
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          observacoes?: string | null
+          product_variant_id?: string
+          quantidade?: number
+          tipo_movimento?: Database["public"]["Enums"]["movement_type"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_movements_product_variant_id_fkey"
+            columns: ["product_variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_movements_product_variant_id_fkey"
+            columns: ["product_variant_id"]
+            isOneToOne: false
+            referencedRelation: "v_stock_balance"
+            referencedColumns: ["variant_id"]
+          },
+        ]
+      }
       suppliers: {
         Row: {
           cnpj_cpf: string | null
@@ -705,12 +747,17 @@ export type Database = {
         Args: { user_id: string }
         Returns: string
       }
+      update_stock_on_entry: {
+        Args: { p_quantity: number; p_variant_id: string }
+        Returns: undefined
+      }
       update_stock_on_sale: {
         Args: { p_quantity: number; p_variant_id: string }
         Returns: undefined
       }
     }
     Enums: {
+      movement_type: "entrada" | "saida" | "ajuste"
       payable_status: "ABERTO" | "PAGO" | "VENCIDO"
       payment_type: "PIX" | "DINHEIRO" | "CREDITO" | "DEBITO"
     }
@@ -840,6 +887,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      movement_type: ["entrada", "saida", "ajuste"],
       payable_status: ["ABERTO", "PAGO", "VENCIDO"],
       payment_type: ["PIX", "DINHEIRO", "CREDITO", "DEBITO"],
     },
