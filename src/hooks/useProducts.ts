@@ -208,6 +208,7 @@ export const useProducts = () => {
         .insert([{
           product_id: productId,
           url: publicUrl,
+          url_link: null,
           principal: isPrincipal
         }]);
 
@@ -236,6 +237,7 @@ export const useProducts = () => {
         .from('product_images')
         .insert([{
           product_id: productId,
+          url: null,
           url_link: imageUrl,
           principal: isPrincipal
         }]);

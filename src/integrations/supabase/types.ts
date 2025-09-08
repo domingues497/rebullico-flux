@@ -255,7 +255,7 @@ export type Database = {
           id: string
           principal: boolean | null
           product_id: string
-          url: string
+          url: string | null
           url_link: string | null
         }
         Insert: {
@@ -263,7 +263,7 @@ export type Database = {
           id?: string
           principal?: boolean | null
           product_id: string
-          url: string
+          url?: string | null
           url_link?: string | null
         }
         Update: {
@@ -271,7 +271,7 @@ export type Database = {
           id?: string
           principal?: boolean | null
           product_id?: string
-          url?: string
+          url?: string | null
           url_link?: string | null
         }
         Relationships: [
