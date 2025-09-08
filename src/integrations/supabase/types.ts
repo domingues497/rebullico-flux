@@ -256,6 +256,7 @@ export type Database = {
           principal: boolean | null
           product_id: string
           url: string
+          url_link: string | null
         }
         Insert: {
           created_at?: string
@@ -263,6 +264,7 @@ export type Database = {
           principal?: boolean | null
           product_id: string
           url: string
+          url_link?: string | null
         }
         Update: {
           created_at?: string
@@ -270,6 +272,7 @@ export type Database = {
           principal?: boolean | null
           product_id?: string
           url?: string
+          url_link?: string | null
         }
         Relationships: [
           {
@@ -743,6 +746,10 @@ export type Database = {
       }
     }
     Functions: {
+      generate_product_code: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       get_user_role: {
         Args: { user_id: string }
         Returns: string

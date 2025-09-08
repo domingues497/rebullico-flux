@@ -94,11 +94,20 @@ export const useProducts = () => {
     }
   };
 
-  const createProduct = async (productData: Omit<Product, 'id' | 'created_at'>) => {
+  const createProduct = async (productData: Omit<Product, 'id' | 'created_at' | 'cod_interno'>) => {
     try {
+      // Generate auto internal code
+      const { data: codeData, error: codeError } = await supabase
+        .rpc('generate_product_code');
+
+      if (codeError) throw codeError;
+
       const { data, error } = await supabase
         .from('products')
-        .insert([productData])
+        .insert([{
+          ...productData,
+          cod_interno: codeData
+        }])
         .select()
         .single();
 
@@ -221,6 +230,35 @@ export const useProducts = () => {
     }
   };
 
+  const addProductImageUrl = async (productId: string, imageUrl: string, isPrincipal = false) => {
+    try {
+      const { error: dbError } = await supabase
+        .from('product_images')
+        .insert([{
+          product_id: productId,
+          url_link: imageUrl,
+          principal: isPrincipal
+        }]);
+
+      if (dbError) throw dbError;
+
+      toast({
+        title: "Sucesso",
+        description: "Imagem adicionada com sucesso"
+      });
+
+      return imageUrl;
+    } catch (error: any) {
+      console.error('Error adding image URL:', error);
+      toast({
+        title: "Erro",
+        description: error.message || "Erro ao adicionar imagem",
+        variant: "destructive"
+      });
+      throw error;
+    }
+  };
+
   useEffect(() => {
     fetchProducts();
     fetchGroups();
@@ -235,6 +273,7 @@ export const useProducts = () => {
     createProduct,
     updateProduct,
     createVariant,
-    uploadProductImage
+    uploadProductImage,
+    addProductImageUrl
   };
 };

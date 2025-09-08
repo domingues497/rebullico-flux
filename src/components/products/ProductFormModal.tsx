@@ -8,7 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Plus, Trash2, Upload, Image } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Plus, Trash2, Upload, Image, Link as LinkIcon, Info } from 'lucide-react';
 import { useProducts } from '@/hooks/useProducts';
 
 interface ProductFormModalProps {
@@ -30,13 +32,12 @@ interface VariantForm {
 }
 
 export const ProductFormModal = ({ open, onOpenChange, productId, mode }: ProductFormModalProps) => {
-  const { groups, createProduct, updateProduct, createVariant, uploadProductImage } = useProducts();
+  const { groups, createProduct, updateProduct, createVariant, uploadProductImage, addProductImageUrl } = useProducts();
   const [loading, setLoading] = useState(false);
   
   const [formData, setFormData] = useState({
     nome: '',
     descricao: '',
-    cod_interno: '',
     cod_fabricante: '',
     ean_default: '',
     grupo_id: ''
@@ -53,6 +54,8 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode }: Produc
   }]);
 
   const [images, setImages] = useState<File[]>([]);
+  const [imageUrls, setImageUrls] = useState<string[]>([]);
+  const [currentImageUrl, setCurrentImageUrl] = useState('');
 
   const isReadonly = mode === 'view';
 
@@ -79,9 +82,14 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode }: Produc
           });
         }
 
-        // Upload images
+        // Upload file images
         for (let i = 0; i < images.length; i++) {
-          await uploadProductImage(product.id, images[i], i === 0);
+          await uploadProductImage(product.id, images[i], i === 0 && imageUrls.length === 0);
+        }
+
+        // Add URL images
+        for (let i = 0; i < imageUrls.length; i++) {
+          await addProductImageUrl(product.id, imageUrls[i], i === 0 && images.length === 0);
         }
       }
 
@@ -98,7 +106,6 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode }: Produc
     setFormData({
       nome: '',
       descricao: '',
-      cod_interno: '',
       cod_fabricante: '',
       ean_default: '',
       grupo_id: ''
@@ -113,6 +120,8 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode }: Produc
       estoque_minimo: 0
     }]);
     setImages([]);
+    setImageUrls([]);
+    setCurrentImageUrl('');
   };
 
   const addVariant = () => {
@@ -143,6 +152,17 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode }: Produc
     if (e.target.files) {
       setImages(Array.from(e.target.files));
     }
+  };
+
+  const addImageUrl = () => {
+    if (currentImageUrl.trim()) {
+      setImageUrls([...imageUrls, currentImageUrl.trim()]);
+      setCurrentImageUrl('');
+    }
+  };
+
+  const removeImageUrl = (index: number) => {
+    setImageUrls(imageUrls.filter((_, i) => i !== index));
   };
 
   useEffect(() => {
@@ -193,15 +213,16 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode }: Produc
               </div>
 
               <div>
-                <Label htmlFor="cod_interno">Código Interno *</Label>
+                <Label htmlFor="cod_interno">Código Interno</Label>
                 <Input
                   id="cod_interno"
-                  value={formData.cod_interno}
-                  onChange={(e) => setFormData({ ...formData, cod_interno: e.target.value })}
-                  placeholder="COD001"
-                  required
-                  disabled={isReadonly}
+                  value="Será gerado automaticamente"
+                  disabled
+                  className="bg-muted"
                 />
+                <p className="text-xs text-muted-foreground mt-1">
+                  O código será gerado automaticamente no formato COD000001
+                </p>
               </div>
 
               <div>
@@ -252,13 +273,25 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode }: Produc
           {mode === 'create' && (
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>Variantes</CardTitle>
+                <div>
+                  <CardTitle>Variantes do Produto</CardTitle>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Cada variante tem estoque independente (por cor, tamanho, etc.)
+                  </p>
+                </div>
                 <Button type="button" variant="outline" size="sm" onClick={addVariant}>
                   <Plus className="w-4 h-4 mr-2" />
                   Nova Variante
                 </Button>
               </CardHeader>
               <CardContent className="space-y-4">
+                <Alert>
+                  <Info className="h-4 w-4" />
+                  <AlertDescription>
+                    <strong>Como funciona:</strong> Cada variante (ex: Camiseta Azul P, Camiseta Vermelha M) 
+                    terá seu próprio estoque. O estoque NÃO é somado entre variantes.
+                  </AlertDescription>
+                </Alert>
                 {variants.map((variant, index) => (
                   <div key={index} className="p-4 border rounded-lg space-y-4">
                     <div className="flex justify-between items-center">
@@ -352,42 +385,103 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode }: Produc
           {mode === 'create' && (
             <Card>
               <CardHeader>
-                <CardTitle>Imagens</CardTitle>
+                <CardTitle>Imagens do Produto</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Adicione imagens por upload de arquivo ou inserindo URLs
+                </p>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="images">Selecionar Imagens</Label>
-                    <Input
-                      id="images"
-                      type="file"
-                      multiple
-                      accept="image/*"
-                      onChange={handleImageUpload}
-                      className="cursor-pointer"
-                    />
-                  </div>
-
-                  {images.length > 0 && (
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      {images.map((file, index) => (
-                        <div key={index} className="relative">
-                          <div className="aspect-square bg-muted rounded-lg flex items-center justify-center">
-                            <Image className="w-8 h-8 text-muted-foreground" />
-                          </div>
-                          <p className="text-xs text-center mt-2 truncate">
-                            {file.name}
-                          </p>
-                          {index === 0 && (
-                            <Badge className="absolute -top-2 -right-2" variant="secondary">
-                              Principal
-                            </Badge>
-                          )}
-                        </div>
-                      ))}
+                <Tabs defaultValue="upload" className="w-full">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="upload">
+                      <Upload className="w-4 h-4 mr-2" />
+                      Upload de Arquivo
+                    </TabsTrigger>
+                    <TabsTrigger value="url">
+                      <LinkIcon className="w-4 h-4 mr-2" />
+                      Link da Imagem
+                    </TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="upload" className="space-y-4">
+                    <div>
+                      <Label htmlFor="images">Selecionar Imagens</Label>
+                      <Input
+                        id="images"
+                        type="file"
+                        multiple
+                        accept="image/*"
+                        onChange={handleImageUpload}
+                        className="cursor-pointer"
+                      />
                     </div>
-                  )}
-                </div>
+
+                    {images.length > 0 && (
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        {images.map((file, index) => (
+                          <div key={index} className="relative">
+                            <div className="aspect-square bg-muted rounded-lg flex items-center justify-center">
+                              <Image className="w-8 h-8 text-muted-foreground" />
+                            </div>
+                            <p className="text-xs text-center mt-2 truncate">
+                              {file.name}
+                            </p>
+                            {index === 0 && imageUrls.length === 0 && (
+                              <Badge className="absolute -top-2 -right-2" variant="secondary">
+                                Principal
+                              </Badge>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </TabsContent>
+                  
+                  <TabsContent value="url" className="space-y-4">
+                    <div className="flex space-x-2">
+                      <div className="flex-1">
+                        <Label htmlFor="imageUrl">URL da Imagem</Label>
+                        <Input
+                          id="imageUrl"
+                          value={currentImageUrl}
+                          onChange={(e) => setCurrentImageUrl(e.target.value)}
+                          placeholder="https://exemplo.com/imagem.jpg"
+                        />
+                      </div>
+                      <div className="flex items-end">
+                        <Button type="button" onClick={addImageUrl} disabled={!currentImageUrl.trim()}>
+                          <Plus className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    {imageUrls.length > 0 && (
+                      <div className="space-y-2">
+                        <Label>URLs Adicionadas:</Label>
+                        {imageUrls.map((url, index) => (
+                          <div key={index} className="flex items-center space-x-2 p-2 border rounded">
+                            <div className="flex-1">
+                              <p className="text-sm truncate">{url}</p>
+                              {index === 0 && images.length === 0 && (
+                                <Badge variant="secondary" className="text-xs">
+                                  Principal
+                                </Badge>
+                              )}
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeImageUrl(index)}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </TabsContent>
+                </Tabs>
               </CardContent>
             </Card>
           )}
