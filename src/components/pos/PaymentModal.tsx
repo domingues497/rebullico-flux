@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Payment, PaymentMethod } from '@/hooks/usePOS';
+import { Payment } from '@/hooks/usePOS';
 import { CreditCard, Banknote, Smartphone, DollarSign, Trash2, Plus } from 'lucide-react';
 
 interface PaymentModalProps {
@@ -22,8 +22,10 @@ interface PaymentModalProps {
 
 export function PaymentModal({ isOpen, onClose, total, onConfirm, isProcessing }: PaymentModalProps) {
   const [payments, setPayments] = useState<Payment[]>([]);
-  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
+  const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
+  const [cardBrands, setCardBrands] = useState<any[]>([]);
   const [selectedMethod, setSelectedMethod] = useState('');
+  const [selectedBrand, setSelectedBrand] = useState('');
   const [amount, setAmount] = useState('');
   const [installments, setInstallments] = useState(1);
   const [observations, setObservations] = useState('');
@@ -36,18 +38,21 @@ export function PaymentModal({ isOpen, onClose, total, onConfirm, isProcessing }
       setPayments([]);
       setAmount('');
       setSelectedMethod('');
+      setSelectedBrand('');
       setInstallments(1);
       setObservations('');
     }
   }, [isOpen]);
 
   const fetchPaymentMethods = async () => {
-    const { data, error } = await supabase
-      .from('acquirer_fees')
+    // Buscar métodos de pagamento
+    const { data: methods, error: methodsError } = await supabase
+      .from('payment_methods')
       .select('*')
-      .order('bandeira', { ascending: true });
+      .eq('ativo', true)
+      .order('nome', { ascending: true });
 
-    if (error) {
+    if (methodsError) {
       toast({
         title: "Erro",
         description: "Não foi possível carregar as formas de pagamento",
@@ -56,7 +61,23 @@ export function PaymentModal({ isOpen, onClose, total, onConfirm, isProcessing }
       return;
     }
 
-    setPaymentMethods(data);
+    // Buscar bandeiras de cartão
+    const { data: brands, error: brandsError } = await supabase
+      .from('acquirer_fees')
+      .select('*')
+      .order('bandeira', { ascending: true });
+
+    if (brandsError) {
+      toast({
+        title: "Erro", 
+        description: "Não foi possível carregar as bandeiras de cartão",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setPaymentMethods(methods);
+    setCardBrands(brands);
   };
 
   const getPaymentIcon = (method: string) => {
@@ -75,15 +96,20 @@ export function PaymentModal({ isOpen, onClose, total, onConfirm, isProcessing }
     }
   };
 
-  const calculateFee = (method: string, amount: number, installments: number) => {
-    const methodData = paymentMethods.find(
-      pm => pm.bandeira === method && pm.parcelas === installments
+  const calculateFee = (methodType: string, brand: string, amount: number, installments: number) => {
+    // Only calculate fees for card payments
+    if (methodType !== 'CREDITO' && methodType !== 'DEBITO') {
+      return { feePercent: 0, feeAmount: 0 };
+    }
+
+    const feeData = cardBrands.find(
+      cb => cb.bandeira === brand && cb.parcelas === installments
     );
     
-    if (!methodData) return { feePercent: 0, feeAmount: 0 };
+    if (!feeData) return { feePercent: 0, feeAmount: 0 };
     
-    const feePercent = methodData.taxa_percentual;
-    const fixedFee = methodData.taxa_fixa;
+    const feePercent = feeData.taxa_percentual || 0;
+    const fixedFee = feeData.taxa_fixa || 0;
     const feeAmount = (amount * feePercent / 100) + fixedFee;
     
     return { feePercent, feeAmount };
@@ -99,6 +125,19 @@ export function PaymentModal({ isOpen, onClose, total, onConfirm, isProcessing }
       return;
     }
 
+    const selectedMethodData = paymentMethods.find(m => m.id === selectedMethod);
+    if (!selectedMethodData) return;
+
+    // Validate brand selection for card payments
+    if (selectedMethodData.exige_bandeira && !selectedBrand) {
+      toast({
+        title: "Erro",
+        description: "Selecione a bandeira do cartão",
+        variant: "destructive"
+      });
+      return;
+    }
+
     const paymentAmount = parseFloat(amount);
     if (paymentAmount <= 0) {
       toast({
@@ -109,11 +148,18 @@ export function PaymentModal({ isOpen, onClose, total, onConfirm, isProcessing }
       return;
     }
 
-    const { feePercent, feeAmount } = calculateFee(selectedMethod, paymentAmount, installments);
+    const { feePercent, feeAmount } = calculateFee(
+      selectedMethodData.tipo, 
+      selectedBrand, 
+      paymentAmount, 
+      installments
+    );
     const netAmount = paymentAmount - feeAmount;
 
     const newPayment: Payment = {
-      method: selectedMethod,
+      method: selectedMethodData.tipo,
+      brand: selectedBrand,
+      methodName: selectedMethodData.nome,
       amount: paymentAmount,
       installments,
       fee_percent: feePercent,
@@ -124,6 +170,7 @@ export function PaymentModal({ isOpen, onClose, total, onConfirm, isProcessing }
     setPayments(prev => [...prev, newPayment]);
     setAmount('');
     setSelectedMethod('');
+    setSelectedBrand('');
     setInstallments(1);
   };
 
@@ -142,12 +189,13 @@ export function PaymentModal({ isOpen, onClose, total, onConfirm, isProcessing }
     onConfirm(payments, observations);
   };
 
-  const getInstallmentOptions = (method: string) => {
-    if (method !== 'Crédito') return [1];
+  const getInstallmentOptions = () => {
+    const selectedMethodData = paymentMethods.find(m => m.id === selectedMethod);
+    if (!selectedMethodData?.permite_parcelas || !selectedBrand) return [1];
     
-    const options = paymentMethods
-      .filter(pm => pm.bandeira === method)
-      .map(pm => pm.parcelas)
+    const options = cardBrands
+      .filter(cb => cb.bandeira === selectedBrand)
+      .map(cb => cb.parcelas)
       .sort((a, b) => a - b);
     
     return [...new Set(options)];
@@ -175,11 +223,11 @@ export function PaymentModal({ isOpen, onClose, total, onConfirm, isProcessing }
                       <SelectValue placeholder="Selecione..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {[...new Set(paymentMethods.map(pm => pm.bandeira))].map(method => (
-                        <SelectItem key={method} value={method}>
+                      {paymentMethods.map(method => (
+                        <SelectItem key={method.id} value={method.id}>
                           <div className="flex items-center gap-2">
-                            {getPaymentIcon(method)}
-                            {method}
+                            {getPaymentIcon(method.nome)}
+                            {method.nome}
                           </div>
                         </SelectItem>
                       ))}
@@ -198,30 +246,62 @@ export function PaymentModal({ isOpen, onClose, total, onConfirm, isProcessing }
                   />
                 </div>
 
-                {selectedMethod === 'Crédito' && (
-                  <div className="space-y-2">
-                    <Label>Parcelas</Label>
-                    <Select value={installments.toString()} onValueChange={(v) => setInstallments(Number(v))}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {getInstallmentOptions(selectedMethod).map(option => (
-                          <SelectItem key={option} value={option.toString()}>
-                            {option}x
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
+                {(() => {
+                  const selectedMethodData = paymentMethods.find(m => m.id === selectedMethod);
+                  return selectedMethodData?.exige_bandeira && (
+                    <div className="space-y-2">
+                      <Label>Bandeira</Label>
+                      <Select value={selectedBrand} onValueChange={setSelectedBrand}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {[...new Set(cardBrands.map(cb => cb.bandeira))].map(brand => (
+                            <SelectItem key={brand} value={brand}>
+                              {brand}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  );
+                })()}
+
+                {(() => {
+                  const selectedMethodData = paymentMethods.find(m => m.id === selectedMethod);
+                  return selectedMethodData?.permite_parcelas && selectedBrand && (
+                    <div className="space-y-2">
+                      <Label>Parcelas</Label>
+                      <Select value={installments.toString()} onValueChange={(v) => setInstallments(Number(v))}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {getInstallmentOptions().map(option => (
+                            <SelectItem key={option} value={option.toString()}>
+                              {option}x
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* Fee Preview */}
               {selectedMethod && amount && (
                 <div className="text-sm text-muted-foreground">
                   {(() => {
-                    const { feePercent, feeAmount } = calculateFee(selectedMethod, parseFloat(amount) || 0, installments);
+                    const selectedMethodData = paymentMethods.find(m => m.id === selectedMethod);
+                    if (!selectedMethodData) return null;
+                    
+                    const { feePercent, feeAmount } = calculateFee(
+                      selectedMethodData.tipo, 
+                      selectedBrand, 
+                      parseFloat(amount) || 0, 
+                      installments
+                    );
                     return feeAmount > 0 ? (
                       <div>
                         Taxa: {feePercent}% = R$ {feeAmount.toFixed(2)} • 
@@ -250,10 +330,10 @@ export function PaymentModal({ isOpen, onClose, total, onConfirm, isProcessing }
                   <CardContent className="p-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        {getPaymentIcon(payment.method)}
+                      {getPaymentIcon(payment.methodName)}
                         <div>
                           <div className="font-medium">
-                            {payment.method} {payment.installments > 1 && `${payment.installments}x`}
+                            {payment.methodName} {payment.brand && `- ${payment.brand}`} {payment.installments > 1 && `${payment.installments}x`}
                           </div>
                           <div className="text-sm text-muted-foreground">
                             R$ {payment.amount.toFixed(2)}

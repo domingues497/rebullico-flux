@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from './useAuth';
+import type { Database } from '@/integrations/supabase/types';
 
 export interface CartItem {
   id: string;
@@ -33,7 +34,9 @@ export interface PaymentMethod {
 }
 
 export interface Payment {
-  method: string;
+  method: string; // payment_type enum value
+  brand?: string; // bandeira do cartão
+  methodName: string; // nome amigável
   amount: number;
   installments: number;
   fee_percent: number;
@@ -227,10 +230,10 @@ export function usePOS() {
       // Create payments
       const salePayments = payments.map(payment => ({
         sale_id: sale.id,
-        tipo: payment.method as any,
+        tipo: payment.method as Database['public']['Enums']['payment_type'],
         valor: payment.amount,
         parcelas: payment.installments,
-        bandeira: payment.method !== 'dinheiro' && payment.method !== 'pix' ? payment.method : null,
+        bandeira: payment.brand || null,
       }));
 
       const { error: paymentsError } = await supabase
