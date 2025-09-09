@@ -190,6 +190,36 @@ export type Database = {
           },
         ]
       }
+      payment_methods: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          exige_bandeira: boolean
+          id: string
+          nome: string
+          permite_parcelas: boolean
+          tipo: Database["public"]["Enums"]["payment_type"]
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          exige_bandeira?: boolean
+          id?: string
+          nome: string
+          permite_parcelas?: boolean
+          tipo: Database["public"]["Enums"]["payment_type"]
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          exige_bandeira?: boolean
+          id?: string
+          nome?: string
+          permite_parcelas?: boolean
+          tipo?: Database["public"]["Enums"]["payment_type"]
+        }
+        Relationships: []
+      }
       payments: {
         Row: {
           bandeira: string | null
