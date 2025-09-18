@@ -318,6 +318,18 @@ const POS = () => {
                   <input
                     type="text"
                     defaultValue=""
+                    onKeyDown={(e) => {
+                      // Permite apenas números (0-9), vírgula, % e teclas de controle
+                      const allowedKeys = ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'];
+                      const isNumber = e.key >= '0' && e.key <= '9';
+                      const isComma = e.key === ',';
+                      const isPercent = e.key === '%';
+                      const isControlKey = allowedKeys.includes(e.key);
+                      
+                      if (!isNumber && !isComma && !isPercent && !isControlKey) {
+                        e.preventDefault(); // Bloqueia a tecla
+                      }
+                    }}
                     onChange={(e) => {
                       const raw = e.target.value;
                       console.log('Input value:', raw); // Debug
