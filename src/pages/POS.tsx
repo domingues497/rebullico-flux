@@ -8,6 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { BarcodeScanner } from "@/components/pos/BarcodeScanner";
 import { NumericKeypad } from "@/components/pos/NumericKeypad";
 import { PaymentModal } from "@/components/pos/PaymentModal";
+import { CustomerSelectionModal } from "@/components/pos/CustomerSelectionModal";
 import { usePOS } from "@/hooks/usePOS";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -39,6 +40,7 @@ const POS = () => {
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [showKeypad, setShowKeypad] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
   const [customers, setCustomers] = useState<any[]>([]);
   const { toast } = useToast();
   
@@ -242,12 +244,7 @@ const POS = () => {
                 <Button 
                   variant="outline" 
                   size="sm" 
-                  onClick={() => {
-                    // For demo, select first customer
-                    if (customers.length > 0) {
-                      handleCustomerSelect(customers[0]);
-                    }
-                  }}
+                  onClick={() => setIsCustomerModalOpen(true)}
                 >
                   <Users className="mr-2 h-4 w-4" />
                   {selectedCustomer ? "Trocar" : "Selecionar"}
@@ -409,6 +406,14 @@ const POS = () => {
         total={total}
         onConfirm={handlePayment}
         isProcessing={isProcessing}
+      />
+
+      {/* Customer Selection Modal */}
+      <CustomerSelectionModal
+        open={isCustomerModalOpen}
+        onOpenChange={setIsCustomerModalOpen}
+        customers={customers}
+        onSelectCustomer={handleCustomerSelect}
       />
     </Layout>
   );

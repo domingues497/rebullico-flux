@@ -129,6 +129,32 @@ export function usePOS() {
     }
   }, [cartItems, selectedCustomer, toast]);
 
+  // Update cart items when customer changes
+  useEffect(() => {
+    if (cartItems.length > 0) {
+      setCartItems(prev => prev.map(item => {
+        // Reset any previous customer discounts
+        const baseItem = {
+          ...item,
+          discount_percent: undefined,
+          discount_amount: undefined,
+          final_price: item.price
+        };
+        
+        // Apply new customer group discount if applicable
+        if (selectedCustomer?.customer_group?.desconto_percentual) {
+          const discountPercent = selectedCustomer.customer_group.desconto_percentual;
+          baseItem.discount_percent = discountPercent;
+          baseItem.discount_amount = baseItem.price * (discountPercent / 100);
+          baseItem.final_price = baseItem.price - baseItem.discount_amount;
+        }
+        
+        return baseItem;
+      }));
+    }
+  }, [selectedCustomer]);
+
+
   // Update item quantity
   const updateQuantity = useCallback((variantId: string, quantity: number) => {
     if (quantity <= 0) {
