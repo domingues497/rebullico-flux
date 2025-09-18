@@ -9,8 +9,10 @@ import {
   DollarSign,
   AlertTriangle
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const Dashboard = () => {
+  const navigate = useNavigate();
   // Mock data - will be replaced with real data from API
   const stats = [
     {
@@ -89,7 +91,10 @@ const Dashboard = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <Button className="w-full btn-pos btn-pos-primary">
+              <Button 
+                className="w-full btn-pos btn-pos-primary"
+                onClick={() => navigate('/pos')}
+              >
                 Abrir PDV
               </Button>
               <div className="grid grid-cols-2 gap-3">
