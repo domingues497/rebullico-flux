@@ -48,6 +48,7 @@ export function usePOS() {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [discount, setDiscount] = useState(0);
+  const [discountPercent, setDiscountPercent] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
@@ -55,7 +56,8 @@ export function usePOS() {
   // Calculate totals
   const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const itemDiscounts = cartItems.reduce((sum, item) => sum + ((item.discount_amount || 0) * item.quantity), 0);
-  const totalDiscount = itemDiscounts + discount;
+  const percentDiscountAmount = subtotal * (discountPercent / 100);
+  const totalDiscount = itemDiscounts + discount + percentDiscountAmount;
   const total = Math.max(0, subtotal - totalDiscount);
 
   // Round to nearest 0.05 if enabled
@@ -206,6 +208,7 @@ export function usePOS() {
     setCartItems([]);
     setSelectedCustomer(null);
     setDiscount(0);
+    setDiscountPercent(0);
   }, []);
 
   // Process sale
@@ -331,12 +334,14 @@ export function usePOS() {
     cartItems,
     selectedCustomer,
     discount,
+    discountPercent,
     subtotal,
     totalDiscount,
     total,
     isProcessing,
     setSelectedCustomer,
     setDiscount,
+    setDiscountPercent,
     addToCart,
     updateQuantity,
     updatePrice,

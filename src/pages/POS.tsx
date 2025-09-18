@@ -48,12 +48,14 @@ const POS = () => {
     cartItems,
     selectedCustomer,
     discount,
+    discountPercent,
     subtotal,
     totalDiscount,
     total,
     isProcessing,
     setSelectedCustomer,
     setDiscount,
+    setDiscountPercent,
     addToCart,
     updateQuantity,
     removeItem,
@@ -311,18 +313,47 @@ const POS = () => {
 
               {/* Discount */}
               <div className="space-y-2">
-                <label className="text-sm font-medium">Desconto (%)</label>
+                <label className="text-sm font-medium">Desconto (R$ ou %)</label>
                 <div className="flex space-x-2">
-                  <Input
-                    type="number"
-                    value={discount}
-                    onChange={(e) => setDiscount(Number(e.target.value))}
-                    placeholder="0"
-                    className="flex-1"
+                  <input
+                    type="text"
+                    defaultValue=""
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      console.log('Input value:', raw); // Debug
+                      
+                      // Se vazio, zera tudo
+                      if (!raw.trim()) {
+                        setDiscount(0);
+                        setDiscountPercent(0);
+                        return;
+                      }
+
+                      // Verifica se termina com %
+                      const isPercent = /%\s*$/.test(raw);
+                      
+                      // Normaliza vírgula para ponto e remove % para parsing
+                      let valueStr = raw.replace(',', '.').replace('%', '').trim();
+                      
+                      // Se não conseguir fazer parse, mantém o estado atual (permite digitação incompleta)
+                      const num = parseFloat(valueStr);
+                      if (isNaN(num) || num < 0) {
+                        return; // Mantém estado atual durante digitação
+                      }
+
+                      if (isPercent) {
+                        // É percentual: aplica sobre o total
+                        setDiscount(0);
+                        setDiscountPercent(num);
+                      } else {
+                        // É valor em R$: aplica valor fixo
+                        setDiscount(num);
+                        setDiscountPercent(0);
+                      }
+                    }}
+                    placeholder="Ex: 0,50 (R$) ou 0,5% (percentual)"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm flex-1 font-mono"
                   />
-                  <Button variant="outline" size="icon">
-                    <Percent className="h-4 w-4" />
-                  </Button>
                 </div>
               </div>
 
