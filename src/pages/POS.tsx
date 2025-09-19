@@ -29,6 +29,7 @@ interface Product {
   id: string;
   name: string;
   sku: string;
+  ean?: string;
   price: number;
   stock: number;
   product_variant_id: string;
@@ -76,6 +77,7 @@ const POS = () => {
         .select(`
           id,
           sku,
+          ean,
           preco_base,
           estoque_atual,
           product:products(nome)
@@ -89,6 +91,7 @@ const POS = () => {
         product_variant_id: variant.id,
         name: variant.product.nome,
         sku: variant.sku,
+        ean: variant.ean,
         price: Number(variant.preco_base),
         stock: variant.estoque_atual,
       }));
@@ -130,7 +133,7 @@ const POS = () => {
   };
 
   const handleBarcodeScanned = (code: string) => {
-    const product = products.find(p => p.sku === code || p.id === code);
+    const product = products.find(p => p.sku === code || p.id === code || p.ean === code);
     if (product) {
       handleAddToCart(product);
     } else {
@@ -165,7 +168,8 @@ const POS = () => {
 
   const filteredProducts = products.filter(product =>
     product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.sku.toLowerCase().includes(searchTerm.toLowerCase())
+    product.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (product.ean && product.ean.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   return (
@@ -209,7 +213,10 @@ const POS = () => {
                         {product.stock}
                       </Badge>
                     </div>
-                    <p className="text-xs text-muted-foreground">SKU: {product.sku}</p>
+                    <p className="text-xs text-muted-foreground">
+                      SKU: {product.sku}
+                      {product.ean && <span> • EAN: {product.ean}</span>}
+                    </p>
                     <div className="flex justify-between items-center">
                       <span className="text-lg font-bold text-primary">
                         R$ {product.price.toFixed(2)}
