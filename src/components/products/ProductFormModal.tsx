@@ -18,6 +18,8 @@ interface ProductFormModalProps {
   onOpenChange: (open: boolean) => void;
   productId?: string;
   mode: 'create' | 'edit' | 'view';
+  initialSku?: string;
+  initialEan?: string;
 }
 
 interface VariantForm {
@@ -31,7 +33,7 @@ interface VariantForm {
   estoque_minimo: number;
 }
 
-export const ProductFormModal = ({ open, onOpenChange, productId, mode }: ProductFormModalProps) => {
+export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialSku, initialEan }: ProductFormModalProps) => {
   const { groups, createProduct, updateProduct, createVariant, uploadProductImage, addProductImageUrl } = useProducts();
   const [loading, setLoading] = useState(false);
   
@@ -107,12 +109,12 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode }: Produc
       nome: '',
       descricao: '',
       cod_fabricante: '',
-      ean_default: '',
+      ean_default: initialEan || '',
       grupo_id: ''
     });
     setVariants([{
-      sku: '',
-      ean: '',
+      sku: initialSku || '',
+      ean: initialEan || '',
       tamanho: '',
       cor: '',
       preco_base: 0,
@@ -169,7 +171,7 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode }: Produc
     if (open && mode === 'create') {
       resetForm();
     }
-  }, [open, mode]);
+  }, [open, mode, initialSku, initialEan]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

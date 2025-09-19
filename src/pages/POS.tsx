@@ -9,6 +9,7 @@ import { BarcodeScanner } from "@/components/pos/BarcodeScanner";
 import { NumericKeypad } from "@/components/pos/NumericKeypad";
 import { PaymentModal } from "@/components/pos/PaymentModal";
 import { CustomerSelectionModal } from "@/components/pos/CustomerSelectionModal";
+import { ProductFormModal } from "@/components/products/ProductFormModal";
 import { usePOS } from "@/hooks/usePOS";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -42,6 +43,8 @@ const POS = () => {
   const [showKeypad, setShowKeypad] = useState(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
+  const [isProductModalOpen, setIsProductModalOpen] = useState(false);
+  const [scannedCode, setScannedCode] = useState<string>("");
   const [customers, setCustomers] = useState<any[]>([]);
   const { toast } = useToast();
   
@@ -137,10 +140,23 @@ const POS = () => {
     if (product) {
       handleAddToCart(product);
     } else {
+      setScannedCode(code);
       toast({
         title: "Produto não encontrado",
-        description: `Código ${code} não foi encontrado`,
-        variant: "destructive"
+        description: (
+          <div className="space-y-2">
+            <p>Código {code} não foi encontrado</p>
+            <Button 
+              size="sm" 
+              onClick={() => setIsProductModalOpen(true)}
+              className="w-full"
+            >
+              Cadastrar Produto
+            </Button>
+          </div>
+        ),
+        variant: "destructive",
+        duration: 4000, // 5 segundos
       });
     }
   };
@@ -464,6 +480,20 @@ const POS = () => {
         onOpenChange={setIsCustomerModalOpen}
         customers={customers}
         onSelectCustomer={handleCustomerSelect}
+      />
+
+      {/* Product Registration Modal */}
+      <ProductFormModal
+        open={isProductModalOpen}
+        onOpenChange={(open) => {
+          setIsProductModalOpen(open);
+          if (!open) {
+            setScannedCode("");
+          }
+        }}
+        mode="create"
+        initialSku={scannedCode}
+        initialEan={scannedCode}
       />
     </Layout>
   );
