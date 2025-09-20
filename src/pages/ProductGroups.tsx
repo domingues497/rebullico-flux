@@ -70,7 +70,7 @@ const ProductGroups = () => {
       })) || [];
 
       setGroups(groupsWithCount);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error fetching groups:', error);
       toast({
         title: "Erro",
@@ -114,11 +114,12 @@ const ProductGroups = () => {
       });
 
       await fetchGroups();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error deleting group:', error);
+      const errorMessage = error instanceof Error ? error.message : "Erro ao excluir grupo";
       toast({
         title: "Erro",
-        description: error.message || "Erro ao excluir grupo",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {

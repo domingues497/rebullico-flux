@@ -20,10 +20,25 @@ interface PaymentModalProps {
   isProcessing: boolean;
 }
 
+interface PaymentMethod {
+  id: string;
+  nome: string;
+  tipo: string;
+  ativo: boolean;
+}
+
+interface CardBrand {
+  id: string;
+  bandeira: string;
+  parcelas: number;
+  taxa_percentual: number;
+  taxa_fixa: number;
+}
+
 export function PaymentModal({ isOpen, onClose, total, onConfirm, isProcessing }: PaymentModalProps) {
   const [payments, setPayments] = useState<Payment[]>([]);
-  const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
-  const [cardBrands, setCardBrands] = useState<any[]>([]);
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
+  const [cardBrands, setCardBrands] = useState<CardBrand[]>([]);
   const [selectedMethod, setSelectedMethod] = useState('');
   const [selectedBrand, setSelectedBrand] = useState('');
   const [amount, setAmount] = useState('');

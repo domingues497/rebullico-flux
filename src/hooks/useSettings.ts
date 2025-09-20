@@ -2,32 +2,81 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
-export interface Setting {
+export interface Settings {
   id: string;
-  chave: string;
-  valor: any;
-  created_at: string;
-  updated_at: string;
+  store_name: string;
+  store_cnpj: string;
+  store_address: string;
+  store_phone: string;
+  store_email: string;
+  
+  // POS Configuration
+  enable_rounding_to_05: boolean;
+  allow_price_edit_seller: boolean;
+  auto_print_receipt: boolean;
+  receipt_footer: string;
+  
+  // Financial Settings
+  default_tax_rate: number;
+  currency_symbol: string;
+  
+  // Inventory Settings
+  low_stock_alert: boolean;
+  low_stock_threshold: number;
+  auto_update_stock: boolean;
+  track_inventory: boolean;
+  
+  // System Settings
+  auto_backup: boolean;
+  backup_frequency_days: number;
+  theme: string;
+  language: string;
+  
+  // Timestamps
+  created_at?: string;
+  updated_at?: string;
 }
 
-export function useSettings() {
-  const [settings, setSettings] = useState<Setting[]>([]);
+export const useSettings = () => {
+  const [settings, setSettings] = useState<Settings | null>(null);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
   const fetchSettings = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('settings', {
-        method: 'GET'
-      });
+      const { data, error } = await supabase
+        .from('settings')
+        .select('*')
+        .single();
 
-      if (error) throw error;
-      setSettings(data.data || []);
-    } catch (error: any) {
+      if (error) {
+        // Se não existir nenhum registro, cria um padrão
+        if (error.code === 'PGRST116') {
+          const { data: newData, error: insertError } = await supabase
+            .from('settings')
+            .insert({
+              nome: 'Minha Loja',
+              cnpj: '',
+              endereco: '',
+              telefone: null
+            })
+            .select()
+            .single();
+
+          if (insertError) throw insertError;
+          setSettings(newData);
+        } else {
+          throw error;
+        }
+      } else {
+        setSettings(data);
+      }
+    } catch (error: unknown) {
+      console.error('Error fetching settings:', error);
       toast({
         title: "Erro",
-        description: error.message || "Erro ao carregar configurações",
+        description: "Erro ao carregar configurações",
         variant: "destructive"
       });
     } finally {
@@ -35,106 +84,36 @@ export function useSettings() {
     }
   };
 
-  const getSetting = async (key: string) => {
-    try {
-      const { data, error } = await supabase.functions.invoke('settings', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (error) throw error;
-      return data.data?.find((s: Setting) => s.chave === key)?.valor;
-    } catch (error: any) {
-      console.error('Error getting setting:', error);
-      return null;
-    }
+  const getSetting = (key: keyof Omit<Settings, 'id' | 'created_at' | 'updated_at'>) => {
+    return settings ? settings[key] : null;
   };
 
-  const createSetting = async (chave: string, valor: any) => {
+  const updateSettings = async (updates: Partial<Omit<Settings, 'id' | 'created_at' | 'updated_at'>>) => {
+    if (!settings) return;
+    
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('settings', {
-        method: 'POST',
-        body: { chave, valor }
-      });
+      const { data, error } = await supabase
+        .from('settings')
+        .update(updates)
+        .eq('id', settings.id)
+        .select()
+        .single();
 
       if (error) throw error;
       
+      setSettings(data);
       toast({
         title: "Sucesso",
-        description: "Configuração criada com sucesso"
+        description: "Configurações atualizadas com sucesso"
       });
 
-      await fetchSettings();
-      return data.data;
-    } catch (error: any) {
+      return data;
+    } catch (error: unknown) {
+      console.error('Error updating settings:', error);
       toast({
         title: "Erro",
-        description: error.message || "Erro ao criar configuração",
-        variant: "destructive"
-      });
-      throw error;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const updateSetting = async (chave: string, valor: any) => {
-    setLoading(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('settings', {
-        method: 'PUT',
-        body: { valor },
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (error) throw error;
-      
-      toast({
-        title: "Sucesso",
-        description: "Configuração atualizada com sucesso"
-      });
-
-      await fetchSettings();
-      return data.data;
-    } catch (error: any) {
-      toast({
-        title: "Erro",
-        description: error.message || "Erro ao atualizar configuração",
-        variant: "destructive"
-      });
-      throw error;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const deleteSetting = async (chave: string) => {
-    setLoading(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('settings', {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (error) throw error;
-      
-      toast({
-        title: "Sucesso",
-        description: "Configuração removida com sucesso"
-      });
-
-      await fetchSettings();
-    } catch (error: any) {
-      toast({
-        title: "Erro",
-        description: error.message || "Erro ao remover configuração",
+        description: "Erro ao atualizar configurações",
         variant: "destructive"
       });
       throw error;
@@ -152,8 +131,6 @@ export function useSettings() {
     loading,
     fetchSettings,
     getSetting,
-    createSetting,
-    updateSetting,
-    deleteSetting
+    updateSettings
   };
-}
+};

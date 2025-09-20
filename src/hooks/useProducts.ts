@@ -33,8 +33,27 @@ export interface ProductGroup {
   created_at: string;
 }
 
+export interface ProductWithVariant {
+  id: string;
+  nome: string;
+  descricao?: string;
+  cod_interno: string;
+  cod_fabricante?: string;
+  ean_default?: string;
+  grupo_id?: string;
+  created_at: string;
+  variant_id: string;
+  sku: string;
+  ean?: string;
+  tamanho?: string;
+  cor?: string;
+  preco_base: number;
+  estoque_atual: number;
+  estoque_minimo: number;
+}
+
 export const useProducts = () => {
-  const [products, setProducts] = useState<any[]>([]);
+  const [products, setProducts] = useState<ProductWithVariant[]>([]);
   const [groups, setGroups] = useState<ProductGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
@@ -48,7 +67,7 @@ export const useProducts = () => {
       
       if (error) throw error;
 
-      const groupedProducts = data?.reduce((acc: any[], item: any) => {
+      const groupedProducts = data?.reduce((acc: ProductWithVariant[], item: ProductWithVariant) => {
         const existingProduct = acc.find(p => p.id === item.variant_id);
         if (!existingProduct) {
           acc.push({
@@ -68,7 +87,7 @@ export const useProducts = () => {
       }, []) || [];
 
       setProducts(groupedProducts);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error fetching products:', error);
       toast({
         title: "Erro",
@@ -86,11 +105,16 @@ export const useProducts = () => {
         .from('product_groups')
         .select('*')
         .order('nome');
-      
+
       if (error) throw error;
-      setGroups(data || []);
-    } catch (error: any) {
+
+    } catch (error: unknown) {
       console.error('Error fetching groups:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar os grupos",
+        variant: "destructive"
+      });
     }
   };
 
@@ -120,13 +144,15 @@ export const useProducts = () => {
 
       await fetchProducts();
       return data;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error creating product:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Erro ao criar produto';
       toast({
         title: "Erro",
-        description: error.message || "Erro ao criar produto",
+        description: errorMessage,
         variant: "destructive"
       });
+
       throw error;
     }
   };
@@ -149,13 +175,15 @@ export const useProducts = () => {
 
       await fetchProducts();
       return data;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error updating product:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Erro ao atualizar produto';
       toast({
         title: "Erro",
-        description: error.message || "Erro ao atualizar produto",
+        description: errorMessage,
         variant: "destructive"
       });
+
       throw error;
     }
   };
@@ -177,11 +205,12 @@ export const useProducts = () => {
 
       await fetchProducts();
       return data;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error creating variant:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Erro ao criar variante';
       toast({
         title: "Erro",
-        description: error.message || "Erro ao criar variante",
+        description: errorMessage,
         variant: "destructive"
       });
       throw error;
@@ -220,11 +249,12 @@ export const useProducts = () => {
       });
 
       return publicUrl;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error uploading image:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Erro ao enviar imagem';
       toast({
         title: "Erro",
-        description: error.message || "Erro ao enviar imagem",
+        description: errorMessage,
         variant: "destructive"
       });
       throw error;
@@ -250,11 +280,12 @@ export const useProducts = () => {
       });
 
       return imageUrl;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error adding image URL:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Erro ao adicionar imagem';
       toast({
         title: "Erro",
-        description: error.message || "Erro ao adicionar imagem",
+        description: errorMessage,
         variant: "destructive"
       });
       throw error;

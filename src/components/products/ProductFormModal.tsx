@@ -20,6 +20,7 @@ interface ProductFormModalProps {
   mode: 'create' | 'edit' | 'view';
   initialSku?: string;
   initialEan?: string;
+  onSuccess?: () => void; // Callback para quando o produto for salvo com sucesso
 }
 
 interface VariantForm {
@@ -33,7 +34,7 @@ interface VariantForm {
   estoque_minimo: number;
 }
 
-export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialSku, initialEan }: ProductFormModalProps) => {
+export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialSku, initialEan, onSuccess }: ProductFormModalProps) => {
   const { groups, createProduct, updateProduct, createVariant, uploadProductImage, addProductImageUrl } = useProducts();
   const [loading, setLoading] = useState(false);
   
@@ -97,6 +98,11 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
 
       onOpenChange(false);
       resetForm();
+      
+      // Chamar callback de sucesso se fornecido
+      if (onSuccess) {
+        onSuccess();
+      }
     } catch (error) {
       console.error('Error saving product:', error);
     } finally {

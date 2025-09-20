@@ -147,17 +147,39 @@
 }
 
 @layer components {
-  /* POS specific styles */
+  /* POS Styles */
   .pos-grid {
-    @apply grid grid-cols-1 lg:grid-cols-12 gap-4 p-4 min-h-screen;
+    @apply grid gap-3 sm:gap-4 grid-cols-1 lg:grid-cols-12 min-h-[calc(100vh-8rem)];
   }
 
   .pos-cart {
-    @apply lg:col-span-4 xl:col-span-3;
+    @apply order-1 lg:order-2 lg:col-span-4 xl:col-span-3;
   }
 
   .pos-products {
-    @apply lg:col-span-8 xl:col-span-9;
+    @apply order-2 lg:order-1 lg:col-span-8 xl:col-span-9;
+  }
+
+  /* Sidebar hover animations */
+  .sidebar-hover {
+    @apply transition-all duration-300 ease-in-out;
+  }
+  
+  .sidebar-text-fade {
+    @apply transition-opacity duration-300 ease-in-out;
+  }
+  
+  .sidebar-icon {
+    @apply transition-all duration-200 ease-in-out;
+  }
+
+  /* POS Button Styles */
+  .btn-pos {
+    @apply transition-all duration-200 hover:scale-105 active:scale-95;
+  }
+
+  .btn-pos-primary {
+    @apply bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-medium shadow-lg hover:shadow-xl transition-all duration-200;
   }
 
   /* Card variations */
@@ -171,11 +193,7 @@
 
   /* Button variations */
   .btn-pos {
-    @apply h-12 text-base font-medium rounded-lg transition-all duration-200;
-  }
-
-  .btn-pos-primary {
-    @apply bg-gradient-to-r from-primary to-primary-light text-primary-foreground hover:opacity-90 shadow-md hover:shadow-lg;
+    @apply h-12 text-base font-medium rounded-lg;
   }
 
   .btn-pos-secondary {

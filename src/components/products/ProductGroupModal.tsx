@@ -45,7 +45,7 @@ export const ProductGroupModal = ({ open, onOpenChange, groupId, onSuccess }: Pr
         nome: data.nome,
         estoque_minimo_default: data.estoque_minimo_default || 0
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error fetching group:', error);
       toast({
         title: "Erro",
@@ -95,11 +95,12 @@ export const ProductGroupModal = ({ open, onOpenChange, groupId, onSuccess }: Pr
       onSuccess?.();
       onOpenChange(false);
       resetForm();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error saving group:', error);
+      const errorMessage = error instanceof Error ? error.message : "Erro ao salvar grupo";
       toast({
         title: "Erro",
-        description: error.message || "Erro ao salvar grupo",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {

@@ -9,8 +9,10 @@ import { BarcodeScanner } from "@/components/pos/BarcodeScanner";
 import { NumericKeypad } from "@/components/pos/NumericKeypad";
 import { PaymentModal } from "@/components/pos/PaymentModal";
 import { CustomerSelectionModal } from "@/components/pos/CustomerSelectionModal";
+import { ReceiptModal } from "@/components/pos/ReceiptModal";
 import { ProductFormModal } from "@/components/products/ProductFormModal";
 import { usePOS } from "@/hooks/usePOS";
+import { useSettings } from "@/hooks/useSettings";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { 
@@ -36,6 +38,36 @@ interface Product {
   product_variant_id: string;
 }
 
+interface Customer {
+  id: string;
+  nome: string;
+  email?: string;
+  telefone?: string;
+}
+
+interface PaymentData {
+  method: string;
+  amount: number;
+  brand?: string;
+  installments?: number;
+}
+
+interface ReceiptData {
+  id: string;
+  customer?: Customer;
+  items: Array<{
+    name: string;
+    quantity: number;
+    price: number;
+    total: number;
+  }>;
+  subtotal: number;
+  discount: number;
+  total: number;
+  payments: PaymentData[];
+  created_at: string;
+}
+
 const POS = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -44,9 +76,18 @@ const POS = () => {
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
+  const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
+  const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
   const [scannedCode, setScannedCode] = useState<string>("");
-  const [customers, setCustomers] = useState<any[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [storeInfo, setStoreInfo] = useState({
+    name: "Rebulliço",
+    cnpj: "00.000.000/0000-00",
+    address: "Rua Exemplo, 123 - Centro",
+    phone: "(11) 99999-9999"
+  });
   const { toast } = useToast();
+  const { getSetting } = useSettings();
   
   const {
     cartItems,
@@ -71,10 +112,47 @@ const POS = () => {
   useEffect(() => {
     loadProducts();
     loadCustomers();
+    loadStoreSettings();
   }, []);
+
+  // Carregar configurações da loja
+  const loadStoreSettings = async () => {
+    try {
+      const storeName = await getSetting('store_name');
+      const cnpj = await getSetting('store_cnpj');
+      const address = await getSetting('store_address');
+      const phone = await getSetting('store_phone');
+
+      setStoreInfo({
+        name: storeName ? String(storeName).replace(/"/g, '') : "Rebulliço",
+        cnpj: cnpj ? String(cnpj).replace(/"/g, '') : "",
+        address: address ? String(address).replace(/"/g, '') : "",
+        phone: phone ? String(phone).replace(/"/g, '') : ""
+      });
+    } catch (error) {
+      console.error('Erro ao carregar configurações da loja:', error);
+    }
+  };
 
   const loadProducts = async () => {
     try {
+      console.log('Carregando produtos...');
+      
+      // Primeiro, vamos verificar se há produtos na tabela
+      const { data: allProducts, error: allError } = await supabase
+        .from('product_variants')
+        .select(`
+          id,
+          sku,
+          ean,
+          preco_base,
+          estoque_atual,
+          product:products(nome)
+        `);
+
+      console.log('Todos os produtos:', { allProducts, allError });
+
+      // Agora vamos buscar apenas os com estoque
       const { data, error } = await supabase
         .from('product_variants')
         .select(`
@@ -87,25 +165,24 @@ const POS = () => {
         `)
         .gt('estoque_atual', 0);
 
+      console.log('Produtos com estoque:', { data, error });
+
       if (error) throw error;
 
-      const formattedProducts = data.map(variant => ({
+      const formattedProducts = data?.map(variant => ({
         id: variant.id,
         product_variant_id: variant.id,
-        name: variant.product.nome,
+        name: variant.product?.nome || 'Produto sem nome',
         sku: variant.sku,
         ean: variant.ean,
         price: Number(variant.preco_base),
         stock: variant.estoque_atual,
-      }));
+      })) || [];
 
+      console.log('Produtos formatados:', formattedProducts);
       setProducts(formattedProducts);
-    } catch (error: any) {
-      toast({
-        title: "Erro",
-        description: "Não foi possível carregar os produtos",
-        variant: "destructive"
-      });
+    } catch (error: unknown) {
+      console.error('Error fetching products:', error);
     }
   };
 
@@ -122,12 +199,8 @@ const POS = () => {
 
       if (error) throw error;
       setCustomers(data || []);
-    } catch (error: any) {
-      toast({
-        title: "Erro",
-        description: "Não foi possível carregar os clientes",
-        variant: "destructive"
-      });
+    } catch (error: unknown) {
+      console.error('Error fetching product groups:', error);
     }
   };
 
@@ -161,22 +234,30 @@ const POS = () => {
     }
   };
 
-  const handleCustomerSelect = (customer: any) => {
+  const handleCustomerSelect = (customer: Customer) => {
     setSelectedCustomer(customer);
   };
 
-  const handlePayment = async (payments: any[], observations?: string) => {
+  const handlePayment = async (payments: PaymentData[], observations?: string) => {
     try {
-      await processSale(payments, observations);
+      const result = await processSale(payments, observations);
       setIsPaymentModalOpen(false);
+      
+      // Preparar dados do recibo e abrir modal
+      if (result && result.receiptData) {
+        setReceiptData(result.receiptData);
+        setIsReceiptModalOpen(true);
+      }
+      
       toast({
         title: "Venda realizada!",
         description: "Venda processada com sucesso",
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Erro na venda';
       toast({
         title: "Erro na venda",
-        description: error.message,
+        description: errorMessage,
         variant: "destructive"
       });
     }
@@ -195,18 +276,18 @@ const POS = () => {
         <div className="pos-products space-y-4">
           {/* Search Bar */}
           <Card className="card-flat">
-            <CardContent className="p-4">
+            <CardContent className="p-3">
               <div className="flex space-x-2">
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Buscar produtos por nome ou código..."
+                    placeholder="Buscar produtos..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
+                    className="pl-10 h-10"
                   />
                 </div>
-                  <Button variant="outline" size="icon" onClick={() => setIsScannerOpen(true)}>
+                  <Button variant="outline" size="icon" onClick={() => setIsScannerOpen(true)} className="h-10 w-10">
                     <Scan className="h-4 w-4" />
                   </Button>
               </div>
@@ -214,18 +295,18 @@ const POS = () => {
           </Card>
 
           {/* Products Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-3">
             {filteredProducts.map((product) => (
               <Card
                 key={product.id}
                 className="card-elevated hover:shadow-xl transition-all cursor-pointer"
                 onClick={() => handleAddToCart(product)}
               >
-                <CardContent className="p-4">
+                <CardContent className="p-3">
                   <div className="space-y-2">
                     <div className="flex justify-between items-start">
-                      <h3 className="font-semibold text-sm">{product.name}</h3>
-                      <Badge variant={product.stock > 10 ? "default" : "destructive"}>
+                      <h3 className="font-semibold text-sm leading-tight">{product.name}</h3>
+                      <Badge variant={product.stock > 10 ? "default" : "destructive"} className="text-xs">
                         {product.stock}
                       </Badge>
                     </div>
@@ -234,10 +315,10 @@ const POS = () => {
                       {product.ean && <span> • EAN: {product.ean}</span>}
                     </p>
                     <div className="flex justify-between items-center">
-                      <span className="text-lg font-bold text-primary">
+                      <span className="text-base font-bold text-primary">
                         R$ {product.price.toFixed(2)}
                       </span>
-                      <Button size="sm" className="btn-pos-primary">
+                      <Button size="sm" className="btn-pos-primary h-8 w-8 p-0">
                         <Plus className="h-4 w-4" />
                       </Button>
                     </div>
@@ -252,68 +333,70 @@ const POS = () => {
         <div className="pos-cart space-y-4">
           {/* Customer Selection */}
           <Card className="card-elevated">
-            <CardContent className="p-4">
+            <CardContent className="p-3">
               <div className="flex items-center justify-between">
-                <div>
+                <div className="flex-1 min-w-0">
                   {selectedCustomer ? (
                     <div>
-                      <div className="font-medium">{selectedCustomer.nome}</div>
-                      <div className="text-sm text-muted-foreground">
+                      <div className="font-medium text-sm truncate">{selectedCustomer.nome}</div>
+                      <div className="text-xs text-muted-foreground truncate">
                         {selectedCustomer.customer_group?.nome || 'Cliente'} - {selectedCustomer.customer_group?.desconto_percentual || 0}% desconto
                       </div>
                     </div>
                   ) : (
-                    <div className="text-muted-foreground">Nenhum cliente selecionado</div>
+                    <div className="text-muted-foreground text-sm">Nenhum cliente selecionado</div>
                   )}
                 </div>
                 <Button 
                   variant="outline" 
                   size="sm" 
                   onClick={() => setIsCustomerModalOpen(true)}
+                  className="ml-2 shrink-0"
                 >
-                  <Users className="mr-2 h-4 w-4" />
-                  {selectedCustomer ? "Trocar" : "Selecionar"}
+                  <Users className="mr-1 h-3 w-3" />
+                  <span className="hidden sm:inline">{selectedCustomer ? "Trocar" : "Selecionar"}</span>
+                  <span className="sm:hidden">{selectedCustomer ? "Trocar" : "Cliente"}</span>
                 </Button>
               </div>
             </CardContent>
           </Card>
 
           <Card className="card-elevated">
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <ShoppingCart className="mr-2 h-5 w-5" />
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center text-base">
+                <ShoppingCart className="mr-2 h-4 w-4" />
                 Carrinho ({cartItems.length})
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-3 pt-0">
               {/* Cart Items */}
-              <div className="space-y-3 max-h-64 overflow-y-auto">
+              <div className="space-y-2 max-h-48 sm:max-h-64 overflow-y-auto">
                 {cartItems.length === 0 ? (
-                  <p className="text-center text-muted-foreground py-8">
+                  <p className="text-center text-muted-foreground py-6 text-sm">
                     Carrinho vazio
                   </p>
                 ) : (
                   cartItems.map((item) => (
                     <div key={item.id} className="flex items-center justify-between p-2 bg-muted/30 rounded-lg">
-                      <div className="flex-1">
-                        <h4 className="font-medium text-sm">{item.name}</h4>
-                        <p className="text-xs text-muted-foreground">{item.sku}</p>
+                      <div className="flex-1 min-w-0 pr-2">
+                        <h4 className="font-medium text-sm truncate">{item.name}</h4>
+                        <p className="text-xs text-muted-foreground truncate">{item.sku}</p>
                         <p className="text-sm font-semibold">R$ {item.final_price.toFixed(2)}</p>
                       </div>
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center space-x-1 shrink-0">
                         <Button
                           size="icon"
                           variant="outline"
-                          className="h-6 w-6"
+                          className="h-7 w-7"
                           onClick={() => updateQuantity(item.product_variant_id, item.quantity - 1)}
                         >
                           <Minus className="h-3 w-3" />
                         </Button>
-                        <span className="w-8 text-center text-sm">{item.quantity}</span>
+                        <span className="w-6 text-center text-sm font-medium">{item.quantity}</span>
                         <Button
                           size="icon"
                           variant="outline"
-                          className="h-6 w-6"
+                          className="h-7 w-7"
                           onClick={() => updateQuantity(item.product_variant_id, item.quantity + 1)}
                         >
                           <Plus className="h-3 w-3" />
@@ -321,7 +404,7 @@ const POS = () => {
                         <Button
                           size="icon"
                           variant="destructive"
-                          className="h-6 w-6"
+                          className="h-7 w-7"
                           onClick={() => removeItem(item.product_variant_id)}
                         >
                           <Trash2 className="h-3 w-3" />
@@ -368,7 +451,7 @@ const POS = () => {
                       const isPercent = /%\s*$/.test(raw);
                       
                       // Normaliza vírgula para ponto e remove % para parsing
-                      let valueStr = raw.replace(',', '.').replace('%', '').trim();
+                      const valueStr = raw.replace(',', '.').replace('%', '').trim();
                       
                       // Se não conseguir fazer parse, mantém o estado atual (permite digitação incompleta)
                       const num = parseFloat(valueStr);
@@ -386,8 +469,8 @@ const POS = () => {
                         setDiscountPercent(0);
                       }
                     }}
-                    placeholder="Ex: 0,50 (R$) ou 0,5% (percentual)"
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm flex-1 font-mono"
+                    placeholder="Ex: 0,50 ou 0,5%"
+                    className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 flex-1 font-mono"
                   />
                 </div>
               </div>
@@ -406,7 +489,7 @@ const POS = () => {
                     <span>-R$ {totalDiscount.toFixed(2)}</span>
                   </div>
                 )}
-                <div className="flex justify-between text-lg font-bold">
+                <div className="flex justify-between text-base font-bold">
                   <span>Total:</span>
                   <span>R$ {total.toFixed(2)}</span>
                 </div>
@@ -415,31 +498,34 @@ const POS = () => {
               {/* Payment Buttons */}
               <div className="space-y-2">
                 <Button 
-                  className="w-full btn-pos-primary"
+                  className="w-full btn-pos-primary h-11"
                   disabled={cartItems.length === 0 || isProcessing}
                   onClick={() => setIsPaymentModalOpen(true)}
                 >
                   <DollarSign className="mr-2 h-4 w-4" />
-                  {isProcessing ? "Processando..." : `Finalizar - R$ ${total.toFixed(2)}`}
+                  <span className="text-sm font-medium">
+                    {isProcessing ? "Processando..." : `Finalizar - R$ ${total.toFixed(2)}`}
+                  </span>
                 </Button>
                 
                 <div className="grid grid-cols-2 gap-2">
                   <Button 
                     variant="outline"
-                    className="btn-pos"
+                    className="btn-pos h-10"
                     disabled={cartItems.length === 0}
                     onClick={() => setIsPaymentModalOpen(true)}
                   >
-                    <CreditCard className="mr-2 h-4 w-4" />
-                    Cartão
+                    <CreditCard className="mr-1 h-4 w-4" />
+                    <span className="text-sm">Cartão</span>
                   </Button>
                   <Button 
                     variant="outline"
-                    className="btn-pos"
+                    className="btn-pos h-10"
                     onClick={() => setShowKeypad(!showKeypad)}
                     disabled={cartItems.length === 0}
                   >
-                    🔢 Teclado
+                    <span className="mr-1">🔢</span>
+                    <span className="text-sm">Teclado</span>
                   </Button>
                 </div>
               </div>
@@ -494,7 +580,20 @@ const POS = () => {
         mode="create"
         initialSku={scannedCode}
         initialEan={scannedCode}
+        onSuccess={() => {
+          // Recarregar produtos após cadastro bem-sucedido
+          loadProducts();
+        }}
       />
+
+      {/* Receipt Modal */}
+      {receiptData && (
+        <ReceiptModal
+          isOpen={isReceiptModalOpen}
+          onClose={() => setIsReceiptModalOpen(false)}
+          saleData={receiptData}
+        />
+      )}
     </Layout>
   );
 };

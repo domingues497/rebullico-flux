@@ -24,10 +24,32 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
+interface Customer {
+  id: string;
+  nome: string;
+  email?: string;
+  telefone?: string;
+  cpf_cnpj?: string;
+  endereco?: string;
+  cidade?: string;
+  estado?: string;
+  cep?: string;
+  grupo_id?: string;
+  created_at: string;
+}
+
+interface CustomerGroup {
+  id: string;
+  nome: string;
+  descricao?: string;
+  desconto_percentual?: number;
+  created_at: string;
+}
+
 const Customers = () => {
   const [searchTerm, setSearchTerm] = useState("");
-  const [customers, setCustomers] = useState<any[]>([]);
-  const [customerGroups, setCustomerGroups] = useState<any[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [customerGroups, setCustomerGroups] = useState<CustomerGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
@@ -48,7 +70,7 @@ const Customers = () => {
       
       if (error) throw error;
       setCustomers(data || []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error fetching customers:', error);
       toast({
         title: "Erro",
@@ -69,7 +91,7 @@ const Customers = () => {
       
       if (error) throw error;
       setCustomerGroups(data || []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error fetching customer groups:', error);
     }
   };

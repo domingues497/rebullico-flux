@@ -65,13 +65,8 @@ export function useAuth() {
 
       if (error) throw error;
       setProfile(data as Profile);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error fetching profile:', error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível carregar o perfil do usuário",
-        variant: "destructive"
-      });
     } finally {
       setLoading(false);
     }
@@ -92,13 +87,14 @@ export function useAuth() {
       });
 
       return { success: true };
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Erro no login';
       toast({
         title: "Erro no login",
-        description: error.message,
+        description: errorMessage,
         variant: "destructive"
       });
-      return { success: false, error: error.message };
+      return { success: false, error: errorMessage };
     }
   };
 
@@ -122,13 +118,14 @@ export function useAuth() {
       });
 
       return { success: true };
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Erro no cadastro';
       toast({
         title: "Erro no cadastro",
-        description: error.message,
+        description: errorMessage,
         variant: "destructive"
       });
-      return { success: false, error: error.message };
+      return { success: false, error: errorMessage };
     }
   };
 
@@ -141,7 +138,8 @@ export function useAuth() {
         title: "Sucesso",
         description: "Logout realizado com sucesso!",
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      console.error('Error signing out:', error);
       toast({
         title: "Erro",
         description: "Erro ao fazer logout",

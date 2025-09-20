@@ -122,10 +122,11 @@ export function usePOS() {
 
         setCartItems(prev => [...prev, newItem]);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
       toast({
         title: "Erro",
-        description: error.message,
+        description: errorMessage,
         variant: "destructive"
       });
     }
@@ -315,13 +316,37 @@ export function usePOS() {
         description: `Venda #${sale.id.split('-')[0]} processada com sucesso`,
       });
 
+      // Preparar dados para o recibo
+      const receiptData = {
+        id: `VD-${sale.id.split('-')[0]}`,
+        date: new Date(),
+        items: cartItems.map(item => ({
+          name: item.name,
+          sku: item.sku,
+          quantity: item.quantity,
+          price: item.price,
+          total: item.final_price * item.quantity
+        })),
+        payments: payments.map(payment => ({
+          methodName: payment.methodName,
+          amount: payment.amount,
+          brand: payment.brand,
+          installments: payment.installments > 1 ? payment.installments : undefined
+        })),
+        subtotal,
+        discount: totalDiscount,
+        total,
+        customer: selectedCustomer ? { name: selectedCustomer.nome } : undefined
+      };
+
       clearCart();
       
-      return sale;
-    } catch (error: any) {
+      return { sale, receiptData };
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
       toast({
         title: "Erro ao processar venda",
-        description: error.message,
+        description: errorMessage,
         variant: "destructive"
       });
       throw error;

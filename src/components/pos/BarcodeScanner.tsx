@@ -83,10 +83,10 @@ export function BarcodeScanner({ onCodeScanned, isOpen, onClose }: BarcodeScanne
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     
     try {
-      // Try BarcodeDetector API first (if available)
+      // Check if BarcodeDetector is available
       if ('BarcodeDetector' in window) {
-        const barcodeDetector = new (window as any).BarcodeDetector({
-          formats: ['code_128', 'code_39', 'ean_13', 'ean_8', 'upc_a', 'upc_e']
+        const barcodeDetector = new (window as { BarcodeDetector: BarcodeDetectorConstructor }).BarcodeDetector({
+          formats: ['code_128', 'code_39', 'ean_13', 'ean_8']
         });
         
         const barcodes = await barcodeDetector.detect(canvas);
@@ -492,4 +492,10 @@ export function BarcodeScanner({ onCodeScanned, isOpen, onClose }: BarcodeScanne
       </Card>
     </div>
   );
+}
+
+interface BarcodeDetectorConstructor {
+  new (options: { formats: string[] }): {
+    detect: (imageData: ImageData) => Promise<Array<{ rawValue: string }>>;
+  };
 }

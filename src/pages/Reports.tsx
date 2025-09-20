@@ -25,6 +25,84 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
+interface SaleItem {
+  quantidade: number;
+  preco_unitario: number;
+  product_variants: {
+    products: {
+      nome: string;
+    };
+  };
+}
+
+interface Sale {
+  id: string;
+  total: number;
+  created_at: string;
+  customer_id?: string;
+  sale_items: SaleItem[];
+}
+
+interface PaymentMethod {
+  metodo_pagamento: {
+    nome: string;
+  };
+  valor: number;
+}
+
+interface ProductStats {
+  [productName: string]: {
+    sold: number;
+    revenue: number;
+  };
+}
+
+interface PaymentStats {
+  [methodName: string]: {
+    count: number;
+    total: number;
+  };
+}
+
+interface LowStockItem {
+  id: string;
+  sku: string;
+  estoque_atual: number;
+  estoque_minimo: number;
+  products: {
+    nome: string;
+  };
+}
+
+interface TopProduct {
+  name: string;
+  sold: number;
+  revenue: number;
+}
+
+interface RecentSale {
+  id: string;
+  customer: string;
+  total: number;
+  items: number;
+  payment: string;
+  time: string;
+}
+
+interface PaymentMethodStat {
+  method: string;
+  count: number;
+  total: number;
+  percentage: number;
+}
+
+interface LowStockItemDisplay {
+  name: string;
+  current: number;
+  minimum: number;
+  sku: string;
+}
+
 const Reports = () => {
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
@@ -34,10 +112,10 @@ const Reports = () => {
     items: 0,
     customers: 0
   });
-  const [topProducts, setTopProducts] = useState<any[]>([]);
-  const [recentSales, setRecentSales] = useState<any[]>([]);
-  const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
-  const [lowStockItems, setLowStockItems] = useState<any[]>([]);
+  const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
+  const [recentSales, setRecentSales] = useState<RecentSale[]>([]);
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethodStat[]>([]);
+  const [lowStockItems, setLowStockItems] = useState<LowStockItemDisplay[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
@@ -76,15 +154,15 @@ const Reports = () => {
 
       const totalSales = salesData?.reduce((sum, sale) => sum + Number(sale.total_liquido), 0) || 0;
       const totalItems = salesData?.reduce((sum, sale) => 
-        sum + sale.sale_items.reduce((itemSum: number, item: any) => itemSum + item.quantidade, 0), 0) || 0;
+        sum + sale.sale_items.reduce((itemSum: number, item: SaleItem) => itemSum + item.quantidade, 0), 0) || 0;
 
       setTodayStats({
         sales: totalSales,
         transactions: salesData?.length || 0,
         items: totalItems,
-        customers: new Set(salesData?.map(s => (s as any).customer_id).filter(Boolean)).size
+        customers: new Set(salesData?.map(s => (s as { customer_id?: string }).customer_id).filter(Boolean)).size
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error fetching today stats:', error);
     }
   };
@@ -107,7 +185,7 @@ const Reports = () => {
       if (error) throw error;
 
       // Group by product and calculate totals
-      const productStats = data?.reduce((acc: any, item: any) => {
+      const productStats = data?.reduce((acc: ProductStats, item: SaleItem) => {
         const productName = item.product_variants.products.nome;
         if (!acc[productName]) {
           acc[productName] = { sold: 0, revenue: 0 };
@@ -118,12 +196,12 @@ const Reports = () => {
       }, {}) || {};
 
       const topProductsList = Object.entries(productStats)
-        .map(([name, stats]: [string, any]) => ({ name, ...stats }))
+        .map(([name, stats]: [string, { sold: number; revenue: number }]) => ({ name, ...stats }))
         .sort((a, b) => b.revenue - a.revenue)
         .slice(0, 4);
 
       setTopProducts(topProductsList);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error fetching top products:', error);
     }
   };
@@ -145,17 +223,17 @@ const Reports = () => {
 
       if (error) throw error;
 
-      const salesWithDetails = data?.map((sale: any) => ({
+      const salesWithDetails = data?.map((sale: Sale) => ({
         id: `VD-${sale.id.slice(-4)}`,
         customer: sale.customers?.nome || 'Cliente não identificado',
         total: Number(sale.total_liquido),
-        items: sale.sale_items?.reduce((sum: number, item: any) => sum + item.quantidade, 0) || 0,
+        items: sale.sale_items?.reduce((sum: number, item: SaleItem) => sum + item.quantidade, 0) || 0,
         payment: sale.payments?.[0]?.tipo || 'N/A',
         time: new Date(sale.data).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
       })) || [];
 
       setRecentSales(salesWithDetails);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error fetching recent sales:', error);
     }
   };
@@ -173,7 +251,7 @@ const Reports = () => {
       if (error) throw error;
 
       // Group by payment type
-      const methodStats = data?.reduce((acc: any, payment: any) => {
+      const methodStats = data?.reduce((acc: PaymentStats, payment: PaymentMethod) => {
         const method = payment.tipo;
         if (!acc[method]) {
           acc[method] = { count: 0, total: 0, fee: 0 };
@@ -183,7 +261,7 @@ const Reports = () => {
         return acc;
       }, {}) || {};
 
-      const methodsList = Object.entries(methodStats).map(([method, stats]: [string, any]) => ({
+      const methodsList = Object.entries(methodStats).map(([method, stats]: [string, { count: number; total: number }]) => ({
         method,
         count: stats.count,
         total: stats.total,
@@ -192,7 +270,7 @@ const Reports = () => {
       }));
 
       setPaymentMethods(methodsList);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error fetching payment methods:', error);
     }
   };
@@ -207,14 +285,14 @@ const Reports = () => {
 
       if (error) throw error;
 
-      const lowStockList = data?.map((item: any) => ({
+      const lowStockList = data?.map((item: LowStockItem) => ({
         name: `${item.product_name}${item.tamanho ? ` - ${item.tamanho}` : ''}${item.cor ? ` ${item.cor}` : ''}`,
         current: item.estoque_atual,
         minimum: item.estoque_minimo
       })) || [];
 
       setLowStockItems(lowStockList);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error fetching low stock items:', error);
     }
   };
