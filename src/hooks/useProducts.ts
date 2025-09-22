@@ -86,28 +86,52 @@ export const useProducts = () => {
   const { toast } = useToast();
 
   const fetchProducts = async () => {
+    setLoading(true);
     try {
+      console.log('🔍 Buscando produtos...');
       const { data, error } = await supabase
-        .from('v_stock_balance')
-        .select('*')
-        .order('product_name');
-      
+        .from('product_variants')
+        .select(`
+          id,
+          sku,
+          ean,
+          tamanho,
+          cor,
+          preco_base,
+          estoque_atual,
+          estoque_minimo,
+          product_id,
+          products!inner (
+            id,
+            nome,
+            descricao,
+            cod_interno,
+            cod_fabricante,
+            ean_default,
+            grupo_id,
+            created_at
+          )
+        `);
+
       if (error) throw error;
 
-      const groupedProducts = data?.reduce((acc: ProductWithVariant[], item: StockBalanceView) => {
-        const existingProduct = acc.find(p => p.variant_id === item.variant_id);
+      console.log('🔍 Dados recebidos do Supabase:', data);
+
+      const groupedProducts = data?.reduce((acc: any[], item: any) => {
+        const existingProduct = acc.find(p => p.id === item.product_id);
         if (!existingProduct) {
+          console.log('🔍 Processando produto:', item.products.nome, 'ID:', item.product_id);
           const isLowStock = item.estoque_atual <= item.estoque_minimo;
           acc.push({
             id: item.product_id,
-            nome: item.product_name,
-            descricao: item.descricao,
-            cod_interno: item.cod_interno,
-            cod_fabricante: item.cod_fabricante,
-            ean_default: item.ean_default,
-            grupo_id: item.grupo_id,
-            created_at: item.created_at,
-            variant_id: item.variant_id,
+            nome: item.products.nome,
+            descricao: item.products.descricao,
+            cod_interno: item.products.cod_interno,
+            cod_fabricante: item.products.cod_fabricante,
+            ean_default: item.products.ean_default,
+            grupo_id: item.products.grupo_id,
+            created_at: item.products.created_at,
+            variant_id: item.id,
             sku: item.sku,
             ean: item.ean,
             tamanho: item.tamanho,
@@ -116,7 +140,7 @@ export const useProducts = () => {
             estoque_atual: item.estoque_atual,
             estoque_minimo: item.estoque_minimo,
             // Propriedades para compatibilidade
-            name: item.product_name,
+            name: item.products.nome,
             price: Number(item.preco_base),
             stock: item.estoque_atual,
             minStock: item.estoque_minimo,
@@ -128,7 +152,14 @@ export const useProducts = () => {
         return acc;
       }, []) || [];
 
-      setProducts(groupedProducts);
+      console.log('🔍 Produtos processados:', groupedProducts);
+      
+      // Ordenar os produtos por nome após o processamento
+      const sortedProducts = groupedProducts.sort((a, b) => 
+        a.nome.localeCompare(b.nome, 'pt-BR', { sensitivity: 'base' })
+      );
+      
+      setProducts(sortedProducts);
     } catch (error: unknown) {
       console.error('Error fetching products:', error);
       toast({
@@ -161,27 +192,74 @@ export const useProducts = () => {
     }
   };
 
-  const getProduct = async (id: string) => {
+  const getProduct = async (productId: string): Promise<ProductWithVariant | null> => {
     try {
-      const { data: productData, error: productError } = await supabase
-        .from('products')
-        .select('*')
-        .eq('id', id)
+      console.log('🔍 getProduct chamado com ID:', productId);
+      
+      const { data, error } = await supabase
+        .from('product_variants')
+        .select(`
+          id,
+          sku,
+          ean,
+          tamanho,
+          cor,
+          preco_base,
+          estoque_atual,
+          estoque_minimo,
+          product_id,
+          products!inner (
+            id,
+            nome,
+            descricao,
+            cod_interno,
+            cod_fabricante,
+            ean_default,
+            grupo_id,
+            created_at
+          )
+        `)
+        .eq('product_id', productId)
         .single();
 
-      if (productError) throw productError;
+      if (error) {
+        console.error('❌ Erro ao buscar produto:', error);
+        throw error;
+      }
 
-      const { data: variantsData, error: variantsError } = await supabase
-        .from('product_variants')
-        .select('*')
-        .eq('product_id', id);
+      console.log('🔍 Produto encontrado:', data);
 
-      if (variantsError) throw variantsError;
+      if (!data) return null;
 
-      return {
-        product: productData,
-        variants: variantsData || []
+      const product = {
+        id: data.product_id,
+        nome: data.products.nome,
+        descricao: data.products.descricao,
+        cod_interno: data.products.cod_interno,
+        cod_fabricante: data.products.cod_fabricante,
+        ean_default: data.products.ean_default,
+        grupo_id: data.products.grupo_id,
+        created_at: data.products.created_at,
+        variant_id: data.id,
+        sku: data.sku,
+        ean: data.ean,
+        tamanho: data.tamanho,
+        cor: data.cor,
+        preco_base: Number(data.preco_base),
+        estoque_atual: data.estoque_atual,
+        estoque_minimo: data.estoque_minimo,
+        // Propriedades para compatibilidade
+        name: data.products.nome,
+        price: Number(data.preco_base),
+        stock: data.estoque_atual,
+        minStock: data.estoque_minimo,
+        size: data.tamanho,
+        color: data.cor,
+        isLowStock: data.estoque_atual <= data.estoque_minimo
       };
+
+      console.log('🔍 Produto processado:', product);
+      return product;
     } catch (error: unknown) {
       console.error('Error fetching product:', error);
       toast({

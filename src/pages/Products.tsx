@@ -50,9 +50,13 @@ const Products = () => {
   };
 
   const handleEditProduct = (productId: string) => {
+    console.log('🎯 handleEditProduct chamado com ID:', productId);
+    console.log('🎯 Tipo do productId:', typeof productId);
+    console.log('🎯 Valor exato:', productId);
     setSelectedProductId(productId);
     setModalMode('edit');
     setModalOpen(true);
+    console.log('🎯 Estado após setSelectedProductId:', productId);
   };
 
   return (
@@ -121,8 +125,8 @@ const Products = () => {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredProducts.map((product) => (
-                    <TableRow key={product.id}>
+                  filteredProducts.map((product, index) => (
+                    <TableRow key={`${product.id}-${index}`}>
                       <TableCell>
                         <div className="font-medium">{product.name}</div>
                       </TableCell>
@@ -190,6 +194,10 @@ const Products = () => {
           onOpenChange={setModalOpen}
           productId={selectedProductId}
           mode={modalMode}
+          onSuccess={() => {
+            console.log('🎉 Produto salvo com sucesso, recarregando lista');
+            fetchProducts();
+          }}
         />
 
       </div>

@@ -201,55 +201,64 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
   };
 
   const loadProductData = useCallback(async () => {
-    if (!productId || mode === 'create') return;
+    if (!productId || mode === 'create') {
+      console.log('🚫 Não carregando produto:', { productId, mode });
+      return;
+    }
     
     console.log('🔍 Iniciando carregamento do produto:', { productId, mode });
+    console.log('🔍 Tipo do productId:', typeof productId);
+    console.log('🔍 Valor do productId:', productId);
+    
     setLoadingProduct(true);
     try {
+      console.log('📞 Chamando getProduct com ID:', productId);
       const result = await getProduct(productId);
-      console.log('📦 Resultado do getProduct:', result);
+      console.log('📦 Resultado completo do getProduct:', result);
+      console.log('📦 Tipo do resultado:', typeof result);
       
       if (result) {
-        const { product, variants: productVariants } = result;
-        console.log('📋 Dados do produto:', product);
-        console.log('🔢 Variantes do produto:', productVariants);
+        console.log('📋 Dados do produto extraídos:', result);
+        console.log('📋 Tipo dos dados do produto:', typeof result);
         
         // Carregar dados do produto
-        setFormData({
-          nome: product.nome || '',
-          descricao: product.descricao || '',
-          codigo_interno: product.cod_interno || '',
-          grupo_id: product.grupo_id || ''
-        });
+        const newFormData = {
+          nome: result.nome || '',
+          descricao: result.descricao || '',
+          codigo_interno: result.cod_interno || '',
+          grupo_id: result.grupo_id || ''
+        };
+        console.log('📝 Novos dados do formulário:', newFormData);
+        setFormData(newFormData);
 
-        // Carregar variantes
-        if (productVariants && productVariants.length > 0) {
-          const formattedVariants = productVariants.map(variant => ({
-            id: variant.id,
-            sku: variant.sku || '',
-            ean: variant.ean || '',
-            cod_fabricante: '', // Campo não existe na tabela, manter vazio
-            tamanho: variant.tamanho || '',
-            cor: variant.cor || '',
-            preco_custo: 0, // Campo não existe na tabela, calcular ou manter 0
-            margem_lucro: 0, // Campo não existe na tabela, calcular ou manter 0
-            preco_base: variant.preco_base || 0,
-            estoque_atual: variant.estoque_atual || 0,
-            estoque_minimo: variant.estoque_minimo || 0
-          }));
-          console.log('✅ Variantes formatadas:', formattedVariants);
-          setVariants(formattedVariants);
-        }
+        // Carregar variante (getProduct retorna apenas uma variante)
+        const formattedVariant = {
+          id: result.variant_id,
+          sku: result.sku || '',
+          ean: result.ean || '',
+          cod_fabricante: '', // Campo não existe na tabela, manter vazio
+          tamanho: result.tamanho || '',
+          cor: result.cor || '',
+          preco_custo: 0, // Campo não existe na tabela, calcular ou manter 0
+          margem_lucro: 0, // Campo não existe na tabela, calcular ou manter 0
+          preco_base: result.preco_base || 0,
+          estoque_atual: result.estoque_atual || 0,
+          estoque_minimo: result.estoque_minimo || 0
+        };
+        console.log('✅ Variante formatada:', formattedVariant);
+        setVariants([formattedVariant]);
         
         console.log('✅ Dados carregados com sucesso');
       } else {
         console.log('❌ Nenhum resultado retornado do getProduct');
+        console.log('❌ Valor exato do resultado:', result);
       }
     } catch (error) {
       console.error('❌ Error loading product data:', error);
+      console.error('❌ Stack trace:', error instanceof Error ? error.stack : 'No stack trace');
       toast({
         title: "Erro",
-        description: "Não foi possível carregar os dados do produto",
+        description: `Não foi possível carregar os dados do produto: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
         variant: "destructive"
       });
     } finally {
