@@ -480,8 +480,8 @@ const Reports = () => {
                     <TableCell colSpan={5} className="text-center">Nenhuma venda no período</TableCell>
                   </TableRow>
                 ) : (
-                  paymentMethods.map((method, index) => (
-                    <TableRow key={index}>
+                  paymentMethods.map((method) => (
+                    <TableRow key={method.method}>
                       <TableCell>{method.method}</TableCell>
                       <TableCell>{method.count}</TableCell>
                       <TableCell>R$ {method.total.toFixed(2)}</TableCell>
@@ -510,8 +510,8 @@ const Reports = () => {
               ) : lowStockItems.length === 0 ? (
                 <div className="text-center text-success">Nenhum produto com estoque baixo! 🎉</div>
               ) : (
-                lowStockItems.map((item, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 bg-warning/10 rounded-lg border-l-4 border-warning">
+                lowStockItems.map((item) => (
+                  <div key={item.id || item.name} className="flex items-center justify-between p-3 bg-warning/10 rounded-lg border-l-4 border-warning">
                     <div>
                       <div className="font-medium">{item.name}</div>
                       <div className="text-sm text-muted-foreground">

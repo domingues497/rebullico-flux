@@ -161,6 +161,38 @@ export const useProducts = () => {
     }
   };
 
+  const getProduct = async (id: string) => {
+    try {
+      const { data: productData, error: productError } = await supabase
+        .from('products')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (productError) throw productError;
+
+      const { data: variantsData, error: variantsError } = await supabase
+        .from('product_variants')
+        .select('*')
+        .eq('product_id', id);
+
+      if (variantsError) throw variantsError;
+
+      return {
+        product: productData,
+        variants: variantsData || []
+      };
+    } catch (error: unknown) {
+      console.error('Error fetching product:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar o produto",
+        variant: "destructive"
+      });
+      throw error;
+    }
+  };
+
   const createProduct = async (productData: Omit<Product, 'id' | 'created_at' | 'cod_interno'>) => {
     try {
       // Generate auto internal code
@@ -260,6 +292,36 @@ export const useProducts = () => {
     }
   };
 
+  const updateVariant = async (id: string, variantData: Partial<ProductVariant>) => {
+    try {
+      const { data, error } = await supabase
+        .from('product_variants')
+        .update(variantData)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      toast({
+        title: "Sucesso",
+        description: "Variante atualizada com sucesso"
+      });
+
+      await fetchProducts();
+      return data;
+    } catch (error: unknown) {
+      console.error('Error updating variant:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Erro ao atualizar variante';
+      toast({
+        title: "Erro",
+        description: errorMessage,
+        variant: "destructive"
+      });
+      throw error;
+    }
+  };
+
   const uploadProductImage = async (productId: string, file: File, isPrincipal = false) => {
     try {
       const fileExt = file.name.split('.').pop();
@@ -346,9 +408,11 @@ export const useProducts = () => {
     loading,
     fetchProducts,
     fetchGroups,
+    getProduct,
     createProduct,
     updateProduct,
     createVariant,
+    updateVariant,
     uploadProductImage,
     addProductImageUrl
   };

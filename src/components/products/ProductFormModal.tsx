@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Plus, Trash2, Upload, Image, Link as LinkIcon, Info } from 'lucide-react';
 import { useProducts } from '@/hooks/useProducts';
+import { useToast } from '@/hooks/use-toast';
 
 interface ProductFormModalProps {
   open: boolean;
@@ -38,8 +39,10 @@ interface VariantForm {
 }
 
 export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialSku, initialEan, onSuccess }: ProductFormModalProps) => {
-  const { groups, createProduct, updateProduct, createVariant, uploadProductImage, addProductImageUrl } = useProducts();
+  const { toast } = useToast();
+  const { groups, createProduct, updateProduct, createVariant, updateVariant: updateVariantAPI, uploadProductImage, addProductImageUrl, getProduct } = useProducts();
   const [loading, setLoading] = useState(false);
+  const [loadingProduct, setLoadingProduct] = useState(false);
   
   const [formData, setFormData] = useState({
     nome: '',
@@ -49,8 +52,8 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
   });
 
   const [variants, setVariants] = useState<VariantForm[]>([{
-    sku: '',
-    ean: '',
+    sku: initialSku || '',
+    ean: initialEan || '',
     cod_fabricante: '',
     tamanho: '',
     cor: '',
@@ -160,7 +163,7 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
     }
   };
 
-  const updateVariant = (index: number, field: keyof VariantForm, value: string | number) => {
+  const updateVariantForm = (index: number, field: keyof VariantForm, value: string | number) => {
     const newVariants = [...variants];
     newVariants[index] = { ...newVariants[index], [field]: value };
     
@@ -197,11 +200,70 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
     setImageUrls(imageUrls.filter((_, i) => i !== index));
   };
 
+  const loadProductData = useCallback(async () => {
+    if (!productId || mode === 'create') return;
+    
+    console.log('🔍 Iniciando carregamento do produto:', { productId, mode });
+    setLoadingProduct(true);
+    try {
+      const result = await getProduct(productId);
+      console.log('📦 Resultado do getProduct:', result);
+      
+      if (result) {
+        const { product, variants: productVariants } = result;
+        console.log('📋 Dados do produto:', product);
+        console.log('🔢 Variantes do produto:', productVariants);
+        
+        // Carregar dados do produto
+        setFormData({
+          nome: product.nome || '',
+          descricao: product.descricao || '',
+          codigo_interno: product.cod_interno || '',
+          grupo_id: product.grupo_id || ''
+        });
+
+        // Carregar variantes
+        if (productVariants && productVariants.length > 0) {
+          const formattedVariants = productVariants.map(variant => ({
+            id: variant.id,
+            sku: variant.sku || '',
+            ean: variant.ean || '',
+            cod_fabricante: '', // Campo não existe na tabela, manter vazio
+            tamanho: variant.tamanho || '',
+            cor: variant.cor || '',
+            preco_custo: 0, // Campo não existe na tabela, calcular ou manter 0
+            margem_lucro: 0, // Campo não existe na tabela, calcular ou manter 0
+            preco_base: variant.preco_base || 0,
+            estoque_atual: variant.estoque_atual || 0,
+            estoque_minimo: variant.estoque_minimo || 0
+          }));
+          console.log('✅ Variantes formatadas:', formattedVariants);
+          setVariants(formattedVariants);
+        }
+        
+        console.log('✅ Dados carregados com sucesso');
+      } else {
+        console.log('❌ Nenhum resultado retornado do getProduct');
+      }
+    } catch (error) {
+      console.error('❌ Error loading product data:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar os dados do produto",
+        variant: "destructive"
+      });
+    } finally {
+      setLoadingProduct(false);
+    }
+  }, [productId, mode, getProduct, toast]);
+
   useEffect(() => {
     if (open && mode === 'create') {
       resetForm();
+    } else if (open && (mode === 'edit' || mode === 'view') && productId) {
+      loadProductData();
     }
-  }, [open, mode, initialSku, initialEan, resetForm]);
+  }, [open, mode, productId, resetForm, loadProductData]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -212,9 +274,22 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
             {mode === 'edit' && 'Editar Produto'}
             {mode === 'view' && 'Visualizar Produto'}
           </DialogTitle>
+          <DialogDescription>
+            {mode === 'create' && 'Preencha as informações para criar um novo produto'}
+            {mode === 'edit' && 'Edite as informações do produto selecionado'}
+            {mode === 'view' && 'Visualize as informações do produto'}
+          </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        {loadingProduct ? (
+          <div className="flex items-center justify-center py-8">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+              <p className="text-sm text-muted-foreground">Carregando dados do produto...</p>
+            </div>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-6">
           {/* Informações Básicas */}
           <Card>
             <CardHeader>
@@ -321,7 +396,7 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
                         <Label>SKU *</Label>
                         <Input
                           value={variant.sku}
-                          onChange={(e) => updateVariant(index, 'sku', e.target.value)}
+                          onChange={(e) => updateVariantForm(index, 'sku', e.target.value)}
                           placeholder="SKU001"
                           required
                         />
@@ -330,7 +405,7 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
                         <Label>EAN</Label>
                         <Input
                           value={variant.ean}
-                          onChange={(e) => updateVariant(index, 'ean', e.target.value)}
+                          onChange={(e) => updateVariantForm(index, 'ean', e.target.value)}
                           placeholder="7894900011517"
                         />
                       </div>
@@ -338,7 +413,7 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
                         <Label>Código de Fabricante</Label>
                         <Input
                           value={variant.cod_fabricante}
-                          onChange={(e) => updateVariant(index, 'cod_fabricante', e.target.value)}
+                          onChange={(e) => updateVariantForm(index, 'cod_fabricante', e.target.value)}
                           placeholder="FAB123"
                         />
                       </div>
@@ -346,7 +421,7 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
                         <Label>Tamanho</Label>
                         <Input
                           value={variant.tamanho}
-                          onChange={(e) => updateVariant(index, 'tamanho', e.target.value)}
+                          onChange={(e) => updateVariantForm(index, 'tamanho', e.target.value)}
                           placeholder="M"
                         />
                       </div>
@@ -357,7 +432,7 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
                         <Label>Cor</Label>
                         <Input
                           value={variant.cor}
-                          onChange={(e) => updateVariant(index, 'cor', e.target.value)}
+                          onChange={(e) => updateVariantForm(index, 'cor', e.target.value)}
                           placeholder="Azul"
                           disabled={isReadonly}
                         />
@@ -368,7 +443,7 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
                           type="number"
                           step="0.01"
                           value={variant.preco_custo}
-                          onChange={(e) => updateVariant(index, 'preco_custo', parseFloat(e.target.value) || 0)}
+                          onChange={(e) => updateVariantForm(index, 'preco_custo', parseFloat(e.target.value) || 0)}
                           placeholder="100,00"
                           required
                           disabled={isReadonly}
@@ -382,7 +457,7 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
                           min="0"
                           max="99.99"
                           value={variant.margem_lucro}
-                          onChange={(e) => updateVariant(index, 'margem_lucro', parseFloat(e.target.value) || 0)}
+                          onChange={(e) => updateVariantForm(index, 'margem_lucro', parseFloat(e.target.value) || 0)}
                           placeholder="14"
                           required
                           disabled={isReadonly}
@@ -394,7 +469,7 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
                           type="number"
                           step="0.01"
                           value={variant.preco_base}
-                          onChange={(e) => updateVariant(index, 'preco_base', parseFloat(e.target.value) || 0)}
+                          onChange={(e) => updateVariantForm(index, 'preco_base', parseFloat(e.target.value) || 0)}
                           placeholder="0,00"
                           className="bg-muted"
                           disabled={isReadonly}
@@ -411,7 +486,7 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
                         <Input
                           type="number"
                           value={variant.estoque_atual}
-                          onChange={(e) => updateVariant(index, 'estoque_atual', parseInt(e.target.value) || 0)}
+                          onChange={(e) => updateVariantForm(index, 'estoque_atual', parseInt(e.target.value) || 0)}
                           placeholder="0"
                           disabled={isReadonly}
                         />
@@ -421,7 +496,7 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
                         <Input
                           type="number"
                           value={variant.estoque_minimo}
-                          onChange={(e) => updateVariant(index, 'estoque_minimo', parseInt(e.target.value) || 0)}
+                          onChange={(e) => updateVariantForm(index, 'estoque_minimo', parseInt(e.target.value) || 0)}
                           placeholder="0"
                           disabled={isReadonly}
                         />
@@ -550,6 +625,7 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
             )}
           </div>
         </form>
+        )}
       </DialogContent>
     </Dialog>
   );

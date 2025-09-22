@@ -109,13 +109,13 @@ const Products = () => {
               </TableHeader>
               <TableBody>
                 {loading ? (
-                  <TableRow>
+                  <TableRow key="loading">
                     <TableCell colSpan={7} className="text-center">
                       Carregando produtos...
                     </TableCell>
                   </TableRow>
                 ) : filteredProducts.length === 0 ? (
-                  <TableRow>
+                  <TableRow key="empty">
                     <TableCell colSpan={7} className="text-center">
                       Nenhum produto encontrado
                     </TableCell>
