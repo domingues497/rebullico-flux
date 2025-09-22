@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,6 +27,7 @@ interface VariantForm {
   id?: string;
   sku: string;
   ean: string;
+  cod_fabricante: string;
   tamanho: string;
   cor: string;
   preco_custo: number;
@@ -43,14 +44,14 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
   const [formData, setFormData] = useState({
     nome: '',
     descricao: '',
-    cod_fabricante: '',
-    ean_default: '',
+    codigo_interno: '',
     grupo_id: ''
   });
 
   const [variants, setVariants] = useState<VariantForm[]>([{
     sku: '',
     ean: '',
+    cod_fabricante: '',
     tamanho: '',
     cor: '',
     preco_custo: 0,
@@ -114,17 +115,17 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
     }
   };
 
-  const resetForm = () => {
+  const resetForm = useCallback(() => {
     setFormData({
       nome: '',
       descricao: '',
-      cod_fabricante: '',
-      ean_default: initialEan || '',
+      codigo_interno: '',
       grupo_id: ''
     });
     setVariants([{
       sku: initialSku || '',
       ean: initialEan || '',
+      cod_fabricante: '',
       tamanho: '',
       cor: '',
       preco_custo: 0,
@@ -136,12 +137,13 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
     setImages([]);
     setImageUrls([]);
     setCurrentImageUrl('');
-  };
+  }, [initialSku, initialEan]);
 
   const addVariant = () => {
     setVariants([...variants, {
       sku: '',
       ean: '',
+      cod_fabricante: '',
       tamanho: '',
       cor: '',
       preco_custo: 0,
@@ -199,7 +201,7 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
     if (open && mode === 'create') {
       resetForm();
     }
-  }, [open, mode, initialSku, initialEan]);
+  }, [open, mode, initialSku, initialEan, resetForm]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -243,36 +245,12 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
               </div>
 
               <div>
-                <Label htmlFor="cod_interno">Código Interno</Label>
+                <Label htmlFor="codigo_interno">Código Interno</Label>
                 <Input
-                  id="cod_interno"
-                  value="Será gerado automaticamente"
-                  disabled
-                  className="bg-muted"
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  O código será gerado automaticamente no formato COD000001
-                </p>
-              </div>
-
-              <div>
-                <Label htmlFor="cod_fabricante">Código do Fabricante</Label>
-                <Input
-                  id="cod_fabricante"
-                  value={formData.cod_fabricante}
-                  onChange={(e) => setFormData({ ...formData, cod_fabricante: e.target.value })}
-                  placeholder="FAB123"
-                  disabled={isReadonly}
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="ean_default">EAN Padrão</Label>
-                <Input
-                  id="ean_default"
-                  value={formData.ean_default}
-                  onChange={(e) => setFormData({ ...formData, ean_default: e.target.value })}
-                  placeholder="7894900011517"
+                  id="codigo_interno"
+                  value={formData.codigo_interno}
+                  onChange={(e) => setFormData({ ...formData, codigo_interno: e.target.value })}
+                  placeholder="COD001"
                   disabled={isReadonly}
                 />
               </div>
@@ -338,7 +316,7 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
                       )}
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                       <div>
                         <Label>SKU *</Label>
                         <Input
@@ -354,6 +332,14 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
                           value={variant.ean}
                           onChange={(e) => updateVariant(index, 'ean', e.target.value)}
                           placeholder="7894900011517"
+                        />
+                      </div>
+                      <div>
+                        <Label>Código de Fabricante</Label>
+                        <Input
+                          value={variant.cod_fabricante}
+                          onChange={(e) => updateVariant(index, 'cod_fabricante', e.target.value)}
+                          placeholder="FAB123"
                         />
                       </div>
                       <div>
@@ -403,7 +389,7 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
                         />
                       </div>
                       <div>
-                        <Label>Preço de Venda (Calculado)</Label>
+                        <Label>Preço de Venda</Label>
                         <Input
                           type="number"
                           step="0.01"
