@@ -29,6 +29,8 @@ interface VariantForm {
   ean: string;
   tamanho: string;
   cor: string;
+  preco_custo: number;
+  margem_lucro: number;
   preco_base: number;
   estoque_atual: number;
   estoque_minimo: number;
@@ -51,6 +53,8 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
     ean: '',
     tamanho: '',
     cor: '',
+    preco_custo: 0,
+    margem_lucro: 0,
     preco_base: 0,
     estoque_atual: 0,
     estoque_minimo: 0
@@ -123,6 +127,8 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
       ean: initialEan || '',
       tamanho: '',
       cor: '',
+      preco_custo: 0,
+      margem_lucro: 0,
       preco_base: 0,
       estoque_atual: 0,
       estoque_minimo: 0
@@ -138,6 +144,8 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
       ean: '',
       tamanho: '',
       cor: '',
+      preco_custo: 0,
+      margem_lucro: 0,
       preco_base: 0,
       estoque_atual: 0,
       estoque_minimo: 0
@@ -153,6 +161,20 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
   const updateVariant = (index: number, field: keyof VariantForm, value: string | number) => {
     const newVariants = [...variants];
     newVariants[index] = { ...newVariants[index], [field]: value };
+    
+    // Calcular preço automaticamente quando custo ou margem mudarem
+    if (field === 'preco_custo' || field === 'margem_lucro') {
+      const custo = field === 'preco_custo' ? Number(value) : newVariants[index].preco_custo;
+      const margem = field === 'margem_lucro' ? Number(value) : newVariants[index].margem_lucro;
+      
+      if (custo > 0 && margem >= 0 && margem < 100) {
+        // Fórmula: Preço de Venda = Preço de Custo ÷ (1 – Margem de Lucro)
+        const margemDecimal = margem / 100;
+        const precoVenda = custo / (1 - margemDecimal);
+        newVariants[index].preco_base = Math.round(precoVenda * 100) / 100; // Arredondar para 2 casas decimais
+      }
+    }
+    
     setVariants(newVariants);
   };
 
@@ -351,19 +373,53 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
                           value={variant.cor}
                           onChange={(e) => updateVariant(index, 'cor', e.target.value)}
                           placeholder="Azul"
+                          disabled={isReadonly}
                         />
                       </div>
                       <div>
-                        <Label>Preço Base *</Label>
+                        <Label>Preço de Custo *</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={variant.preco_custo}
+                          onChange={(e) => updateVariant(index, 'preco_custo', parseFloat(e.target.value) || 0)}
+                          placeholder="100,00"
+                          required
+                          disabled={isReadonly}
+                        />
+                      </div>
+                      <div>
+                        <Label>Margem de Lucro (%) *</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          max="99.99"
+                          value={variant.margem_lucro}
+                          onChange={(e) => updateVariant(index, 'margem_lucro', parseFloat(e.target.value) || 0)}
+                          placeholder="14"
+                          required
+                          disabled={isReadonly}
+                        />
+                      </div>
+                      <div>
+                        <Label>Preço de Venda (Calculado)</Label>
                         <Input
                           type="number"
                           step="0.01"
                           value={variant.preco_base}
                           onChange={(e) => updateVariant(index, 'preco_base', parseFloat(e.target.value) || 0)}
                           placeholder="0,00"
-                          required
+                          className="bg-muted"
+                          disabled={isReadonly}
                         />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Calculado automaticamente: Custo ÷ (1 - Margem%)
+                        </p>
                       </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <Label>Estoque Atual</Label>
                         <Input
@@ -371,6 +427,7 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
                           value={variant.estoque_atual}
                           onChange={(e) => updateVariant(index, 'estoque_atual', parseInt(e.target.value) || 0)}
                           placeholder="0"
+                          disabled={isReadonly}
                         />
                       </div>
                       <div>
@@ -380,6 +437,7 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
                           value={variant.estoque_minimo}
                           onChange={(e) => updateVariant(index, 'estoque_minimo', parseInt(e.target.value) || 0)}
                           placeholder="0"
+                          disabled={isReadonly}
                         />
                       </div>
                     </div>

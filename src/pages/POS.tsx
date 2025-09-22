@@ -138,21 +138,7 @@ const POS = () => {
     try {
       console.log('Carregando produtos...');
       
-      // Primeiro, vamos verificar se há produtos na tabela
-      const { data: allProducts, error: allError } = await supabase
-        .from('product_variants')
-        .select(`
-          id,
-          sku,
-          ean,
-          preco_base,
-          estoque_atual,
-          product:products(nome)
-        `);
-
-      console.log('Todos os produtos:', { allProducts, allError });
-
-      // Agora vamos buscar apenas os com estoque
+      // Buscar todos os produtos (incluindo os com estoque 0)
       const { data, error } = await supabase
         .from('product_variants')
         .select(`
@@ -163,9 +149,9 @@ const POS = () => {
           estoque_atual,
           product:products(nome)
         `)
-        .gt('estoque_atual', 0);
+        .order('created_at', { ascending: false });
 
-      console.log('Produtos com estoque:', { data, error });
+      console.log('Todos os produtos carregados:', { data, error });
 
       if (error) throw error;
 

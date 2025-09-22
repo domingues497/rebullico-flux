@@ -30,7 +30,7 @@ const Products = () => {
   const { products, loading } = useProducts();
 
   const filteredProducts = products.filter(product =>
-    product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    product.nome?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     product.sku?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     product.ean?.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -142,14 +142,14 @@ const Products = () => {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="font-semibold">R$ {product.price.toFixed(2)}</div>
+                        <div className="font-semibold">R$ {product.price?.toFixed(2) || '0.00'}</div>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center space-x-2">
                           <Badge 
                             variant={product.isLowStock ? "destructive" : "default"}
                           >
-                            {product.stock}
+                            {product.stock || 0}
                           </Badge>
                           {product.isLowStock && (
                             <AlertTriangle className="h-4 w-4 text-warning" />

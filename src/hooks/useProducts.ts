@@ -33,6 +33,25 @@ export interface ProductGroup {
   created_at: string;
 }
 
+export interface StockBalanceView {
+  product_id: string;
+  product_name: string;
+  descricao?: string;
+  cod_interno: string;
+  cod_fabricante?: string;
+  ean_default?: string;
+  grupo_id?: string;
+  variant_id: string;
+  sku: string;
+  ean?: string;
+  tamanho?: string;
+  cor?: string;
+  preco_base: number;
+  estoque_atual: number;
+  estoque_minimo: number;
+  created_at: string;
+}
+
 export interface ProductWithVariant {
   id: string;
   nome: string;
@@ -50,6 +69,14 @@ export interface ProductWithVariant {
   preco_base: number;
   estoque_atual: number;
   estoque_minimo: number;
+  // Propriedades para compatibilidade com a página Products
+  name?: string;
+  price?: number;
+  stock?: number;
+  minStock?: number;
+  size?: string;
+  color?: string;
+  isLowStock?: boolean;
 }
 
 export const useProducts = () => {
@@ -67,20 +94,35 @@ export const useProducts = () => {
       
       if (error) throw error;
 
-      const groupedProducts = data?.reduce((acc: ProductWithVariant[], item: ProductWithVariant) => {
-        const existingProduct = acc.find(p => p.id === item.variant_id);
+      const groupedProducts = data?.reduce((acc: ProductWithVariant[], item: StockBalanceView) => {
+        const existingProduct = acc.find(p => p.variant_id === item.variant_id);
         if (!existingProduct) {
+          const isLowStock = item.estoque_atual <= item.estoque_minimo;
           acc.push({
-            id: item.variant_id,
-            name: item.product_name,
+            id: item.product_id,
+            nome: item.product_name,
+            descricao: item.descricao,
+            cod_interno: item.cod_interno,
+            cod_fabricante: item.cod_fabricante,
+            ean_default: item.ean_default,
+            grupo_id: item.grupo_id,
+            created_at: item.created_at,
+            variant_id: item.variant_id,
             sku: item.sku,
             ean: item.ean,
+            tamanho: item.tamanho,
+            cor: item.cor,
+            preco_base: Number(item.preco_base),
+            estoque_atual: item.estoque_atual,
+            estoque_minimo: item.estoque_minimo,
+            // Propriedades para compatibilidade
+            name: item.product_name,
             price: Number(item.preco_base),
             stock: item.estoque_atual,
             minStock: item.estoque_minimo,
             size: item.tamanho,
             color: item.cor,
-            isLowStock: item.is_low_stock
+            isLowStock: isLowStock
           });
         }
         return acc;
@@ -108,6 +150,7 @@ export const useProducts = () => {
 
       if (error) throw error;
 
+      setGroups(data || []);
     } catch (error: unknown) {
       console.error('Error fetching groups:', error);
       toast({
