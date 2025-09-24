@@ -27,7 +27,7 @@ const Products = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState<string>();
   const [modalMode, setModalMode] = useState<'create' | 'edit' | 'view'>('create');
-  const { products, loading } = useProducts();
+  const { products, loading, fetchProducts } = useProducts();
 
   const filteredProducts = products.filter(product =>
     product.nome?.toLowerCase().includes(searchTerm.toLowerCase()) ||

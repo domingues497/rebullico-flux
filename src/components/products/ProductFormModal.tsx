@@ -335,7 +335,7 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
                   value={formData.codigo_interno}
                   onChange={(e) => setFormData({ ...formData, codigo_interno: e.target.value })}
                   placeholder="COD001"
-                  disabled={isReadonly}
+                  disabled={true}
                 />
               </div>
 
@@ -408,6 +408,7 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
                           onChange={(e) => updateVariantForm(index, 'sku', e.target.value)}
                           placeholder="SKU001"
                           required
+                          disabled={isReadonly}
                         />
                       </div>
                       <div>
@@ -416,6 +417,7 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
                           value={variant.ean}
                           onChange={(e) => updateVariantForm(index, 'ean', e.target.value)}
                           placeholder="7894900011517"
+                          disabled={isReadonly}
                         />
                       </div>
                       <div>
@@ -424,6 +426,7 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
                           value={variant.cod_fabricante}
                           onChange={(e) => updateVariantForm(index, 'cod_fabricante', e.target.value)}
                           placeholder="FAB123"
+                          disabled={isReadonly}
                         />
                       </div>
                       <div>
@@ -432,6 +435,7 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
                           value={variant.tamanho}
                           onChange={(e) => updateVariantForm(index, 'tamanho', e.target.value)}
                           placeholder="M"
+                          disabled={isReadonly}
                         />
                       </div>
                     </div>
@@ -481,7 +485,7 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
                           onChange={(e) => updateVariantForm(index, 'preco_base', parseFloat(e.target.value) || 0)}
                           placeholder="0,00"
                           className="bg-muted"
-                          disabled={isReadonly}
+                          disabled={true}
                         />
                         <p className="text-xs text-muted-foreground mt-1">
                           Calculado automaticamente: Custo ÷ (1 - Margem%)
@@ -497,8 +501,12 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
                           value={variant.estoque_atual}
                           onChange={(e) => updateVariantForm(index, 'estoque_atual', parseInt(e.target.value) || 0)}
                           placeholder="0"
-                          disabled={isReadonly}
+                          className="bg-muted"
+                          disabled={true}
                         />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Somente para visualização
+                        </p>
                       </div>
                       <div>
                         <Label>Estoque Mínimo</Label>
