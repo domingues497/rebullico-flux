@@ -15,6 +15,8 @@ import { usePOS } from "@/hooks/usePOS";
 import { useSettings } from "@/hooks/useSettings";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import CustomerSearchDialog, { Customer } from "@/components/customers/CustomerSearchDialog";
+
 import { 
   ShoppingCart,
   Search,
@@ -220,9 +222,38 @@ const POS = () => {
     }
   };
 
-  const handleCustomerSelect = (customer: Customer) => {
-    setSelectedCustomer(customer);
+  const handleCustomerSelect = async (customer: any | null) => {
+    if (!customer) {
+      setSelectedCustomer(null);
+      setDiscount(0);
+      return;
+    }
+  
+    // Busca o cliente com o grupo (nome + desconto)
+    const { data, error } = await supabase
+      .from('customers')
+      .select(`
+        id,
+        nome,
+        grupo_pessoas_id,
+        customer_group:customer_groups (nome, desconto_percentual)
+      `)
+      .eq('id', customer.id)
+      .single();
+      
+    if (error) {
+      console.error(error);
+      // fallback: usa o que veio do dialog
+      setSelectedCustomer(customer);
+      setDiscount(0);
+      return;
+    }
+  
+    setSelectedCustomer(data);
+    const percent = Number(data?.customer_group?.desconto_percentual ?? 0);
+    setDiscount(percent);
   };
+  
 
   const handlePayment = async (payments: PaymentData[], observations?: string) => {
     try {
@@ -333,16 +364,11 @@ const POS = () => {
                     <div className="text-muted-foreground text-sm">Nenhum cliente selecionado</div>
                   )}
                 </div>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => setIsCustomerModalOpen(true)}
-                  className="ml-2 shrink-0"
-                >
-                  <Users className="mr-1 h-3 w-3" />
-                  <span className="hidden sm:inline">{selectedCustomer ? "Trocar" : "Selecionar"}</span>
-                  <span className="sm:hidden">{selectedCustomer ? "Trocar" : "Cliente"}</span>
-                </Button>
+                <CustomerSearchDialog
+                  triggerLabel={selectedCustomer ? "Trocar" : "Selecionar"}
+                  onSelect={(c: Customer) => handleCustomerSelect(c)}
+                  onClear={() => handleCustomerSelect(null as any)} // se quiser um "limpar"
+                />
               </div>
             </CardContent>
           </Card>

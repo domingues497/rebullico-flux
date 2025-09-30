@@ -1,0 +1,8 @@
+{
+    "obrigatorias": [
+        "Mat/Orig",
+        "CPF/Dt. Nascimento"
+    ],
+    "visiveis": [],
+    "exibir": []
+}
