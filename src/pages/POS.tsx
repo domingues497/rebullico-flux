@@ -40,22 +40,17 @@ interface Product {
   product_variant_id: string;
 }
 
-interface Customer {
-  id: string;
-  nome: string;
-  email?: string;
-  telefone?: string;
-}
-
 interface PaymentData {
   method: string;
   amount: number;
   brand?: string;
   installments?: number;
+  methodName?: string;
 }
 
 interface ReceiptData {
   id: string;
+  date: Date;
   customer?: Customer;
   items: Array<{
     name: string;
@@ -188,7 +183,7 @@ const POS = () => {
       if (error) throw error;
       setCustomers(data || []);
     } catch (error: unknown) {
-      console.error('Error fetching product groups:', error);
+      console.error('Error fetching customers:', error);
     }
   };
 
