@@ -8,6 +8,11 @@ export interface Product {
   descricao?: string;
   grupo_id?: string;
   grupo_nome?: string;
+  cod_interno: string;
+  brand_id?: string;
+  brand_name?: string;
+  supplier_id?: string;
+  supplier_name?: string;
 }
 
 export interface ProductVariant {
@@ -54,7 +59,7 @@ export interface ProductWithVariant {
   nome: string;
   descricao?: string;
   grupo_id?: string;
-  cod_interno?: string;
+  cod_interno: string;
   created_at: string;
   variant_id: string;
   sku: string;
@@ -65,6 +70,10 @@ export interface ProductWithVariant {
   preco_base: number;
   estoque_atual: number;
   estoque_minimo: number;
+  brand_id?: string;
+  brand_name?: string;
+  supplier_id?: string;
+  supplier_name?: string;
   // Propriedades para compatibilidade
   name?: string;
   price?: number;
@@ -73,6 +82,18 @@ export interface ProductWithVariant {
   size?: string;
   color?: string;
   isLowStock?: boolean;
+  // Array de variantes
+  variants?: Array<{
+    id: string;
+    sku: string;
+    ean?: string;
+    cod_fabricante?: string;
+    tamanho?: string;
+    cor?: string;
+    preco_base: number;
+    estoque_atual: number;
+    estoque_minimo: number;
+  }>;
 }
 
 export const useProducts = () => {
@@ -104,7 +125,17 @@ export const useProducts = () => {
             descricao,
             grupo_id,
             cod_interno,
-            created_at
+            created_at,
+            brand_id,
+            supplier_id,
+            brands (
+              id,
+              nome
+            ),
+            suppliers (
+              id,
+              nome
+            )
           )
         `);
 
@@ -122,6 +153,10 @@ export const useProducts = () => {
         cod_interno: item.products.cod_interno,
         created_at: item.products.created_at,
         grupo_nome: item.products.product_groups?.nome,
+        brand_id: item.products.brand_id,
+        brand_name: item.products.brands?.nome,
+        supplier_id: item.products.supplier_id,
+        supplier_name: item.products.suppliers?.nome,
         sku: item.sku,
         ean: item.ean,
         cod_fabricante: item.cod_fabricante,
@@ -180,10 +215,31 @@ export const useProducts = () => {
     }
   };
 
-  const getProduct = async (productId: string): Promise<ProductWithVariant | null> => {
+  const getProduct = async (variantId: string): Promise<ProductWithVariant | null> => {
     try {
-      console.log('🔍 getProduct chamado com ID:', productId);
+      console.log('🔍 getProduct chamado com variant ID:', variantId);
       
+      // Primeiro, buscar a variante específica para obter o product_id
+      const { data: variantData, error: variantError } = await supabase
+        .from('product_variants')
+        .select('product_id')
+        .eq('id', variantId)
+        .single();
+
+      if (variantError) {
+        console.error('❌ Erro ao buscar variante:', variantError);
+        throw variantError;
+      }
+
+      if (!variantData) {
+        console.log('❌ Variante não encontrada');
+        return null;
+      }
+
+      const productId = variantData.product_id;
+      console.log('🔍 Product ID encontrado:', productId);
+
+      // Agora buscar todas as variantes do produto
       const { data, error } = await supabase
         .from('product_variants')
         .select(`
@@ -193,7 +249,10 @@ export const useProducts = () => {
           cod_fabricante,
           tamanho,
           cor,
+          preco_custo,
+          margem_lucro,
           preco_base,
+          preco_manual,
           estoque_atual,
           estoque_minimo,
           product_id,
@@ -202,11 +261,21 @@ export const useProducts = () => {
             nome,
             descricao,
             grupo_id,
-            created_at
+            cod_interno,
+            brand_id,
+            supplier_id,
+            created_at,
+            brands (
+              id,
+              nome
+            ),
+            suppliers (
+              id,
+              nome
+            )
           )
         `)
-        .eq('product_id', productId)
-        .single();
+        .eq('product_id', productId);
 
       if (error) {
         console.error('❌ Erro ao buscar produto:', error);
@@ -215,32 +284,56 @@ export const useProducts = () => {
 
       console.log('🔍 Produto encontrado:', data);
 
-      if (!data) return null;
+      if (!data || data.length === 0) return null;
+
+      // Usar a primeira variante como base para os dados do produto
+      const firstVariant = data[0];
+      const productData = firstVariant.products;
 
       const product = {
-        id: data.product_id,
-        nome: data.products.nome,
-        descricao: data.products.descricao,
-        grupo_id: data.products.grupo_id,
-        cod_interno: (data.products as any).cod_interno,
-        created_at: data.products.created_at,
-        variant_id: data.id,
-        sku: data.sku,
-        ean: data.ean,
-        cod_fabricante: data.cod_fabricante,
-        tamanho: data.tamanho,
-        cor: data.cor,
-        preco_base: Number(data.preco_base),
-        estoque_atual: data.estoque_atual,
-        estoque_minimo: data.estoque_minimo,
+        id: firstVariant.id, // Usar o ID da variante como ID principal
+        product_id: firstVariant.product_id,
+        nome: productData.nome,
+        descricao: productData.descricao,
+        grupo_id: productData.grupo_id,
+        cod_interno: productData.cod_interno,
+        brand_id: productData.brand_id,
+        supplier_id: productData.supplier_id,
+        brand_name: productData.brands?.nome,
+        supplier_name: productData.suppliers?.nome,
+        created_at: productData.created_at,
+        variant_id: firstVariant.id,
+        sku: firstVariant.sku,
+        ean: firstVariant.ean,
+        cod_fabricante: firstVariant.cod_fabricante,
+        tamanho: firstVariant.tamanho,
+        cor: firstVariant.cor,
+        preco_base: Number(firstVariant.preco_base),
+        estoque_atual: firstVariant.estoque_atual,
+        estoque_minimo: firstVariant.estoque_minimo,
         // Propriedades para compatibilidade
-        name: data.products.nome,
-        price: Number(data.preco_base),
-        stock: data.estoque_atual,
-        minStock: data.estoque_minimo,
-        size: data.tamanho,
-        color: data.cor,
-        isLowStock: data.estoque_atual <= data.estoque_minimo
+        name: productData.nome,
+        price: Number(firstVariant.preco_base),
+        stock: firstVariant.estoque_atual,
+        minStock: firstVariant.estoque_minimo,
+        size: firstVariant.tamanho,
+        color: firstVariant.cor,
+        isLowStock: firstVariant.estoque_atual <= firstVariant.estoque_minimo,
+        // Adicionar todas as variantes do produto
+        variants: data.map(variant => ({
+          id: variant.id,
+          sku: variant.sku || '',
+          ean: variant.ean || '',
+          cod_fabricante: variant.cod_fabricante || '',
+          tamanho: variant.tamanho || '',
+          cor: variant.cor || '',
+          preco_custo: Number(variant.preco_custo) || 0,
+          margem_lucro: Number(variant.margem_lucro) || 0,
+          preco_base: Number(variant.preco_base) || 0,
+          preco_manual: variant.preco_manual !== undefined ? variant.preco_manual : false,
+          estoque_atual: variant.estoque_atual || 0,
+          estoque_minimo: variant.estoque_minimo || 0
+        }))
       };
 
       console.log('🔍 Produto processado:', product);
@@ -260,13 +353,18 @@ export const useProducts = () => {
     nome: string;
     descricao?: string;
     grupo_id?: string;
+    brand_id?: string;
+    supplier_id?: string;
     variants: Array<{
       sku: string;
       ean?: string;
       cod_fabricante?: string;
       tamanho?: string;
       cor?: string;
+      preco_custo?: number;
+      margem_lucro?: number;
       preco_base: number;
+      preco_manual?: boolean;
       estoque_atual: number;
       estoque_minimo: number;
     }>;
@@ -278,6 +376,8 @@ export const useProducts = () => {
           nome: productData.nome,
           descricao: productData.descricao,
           grupo_id: productData.grupo_id,
+          brand_id: productData.brand_id,
+          supplier_id: productData.supplier_id,
           cod_interno: '' // Will be auto-generated by trigger
         }] as any)
         .select()
@@ -293,7 +393,10 @@ export const useProducts = () => {
         cod_fabricante: variant.cod_fabricante,
         tamanho: variant.tamanho,
         cor: variant.cor,
+        preco_custo: variant.preco_custo || 0,
+        margem_lucro: variant.margem_lucro || 0,
         preco_base: variant.preco_base,
+        preco_manual: variant.preco_manual || false,
         estoque_atual: variant.estoque_atual,
         estoque_minimo: variant.estoque_minimo,
       }));
@@ -324,11 +427,13 @@ export const useProducts = () => {
     }
   };
 
-  const updateProduct = async (id: string, productData: {
+  const updateProduct = async (variantId: string, productData: {
     nome: string;
     descricao?: string;
     grupo_id?: string;
     cod_interno: string;
+    brand_id?: string;
+    supplier_id?: string;
     variants: Array<{
       id?: string;
       sku: string;
@@ -336,12 +441,37 @@ export const useProducts = () => {
       cod_fabricante?: string;
       tamanho?: string;
       cor?: string;
+      preco_custo?: number;
+      margem_lucro?: number;
       preco_base: number;
+      preco_manual?: boolean;
       estoque_atual: number;
       estoque_minimo: number;
     }>;
   }) => {
     try {
+      console.log('🔄 updateProduct chamado com variant ID:', variantId);
+      
+      // Primeiro, buscar o product_id da variante
+      const { data: variantData, error: variantError } = await supabase
+        .from('product_variants')
+        .select('product_id')
+        .eq('id', variantId)
+        .single();
+
+      if (variantError) {
+        console.error('❌ Erro ao buscar variante:', variantError);
+        throw variantError;
+      }
+
+      if (!variantData) {
+        throw new Error('Variante não encontrada');
+      }
+
+      const productId = variantData.product_id;
+      console.log('🔍 Product ID encontrado:', productId);
+
+      // Atualizar o produto usando o product_id correto
       const { data, error } = await supabase
         .from('products')
         .update({
@@ -349,12 +479,70 @@ export const useProducts = () => {
           descricao: productData.descricao,
           grupo_id: productData.grupo_id,
           cod_interno: productData.cod_interno,
+          brand_id: productData.brand_id,
+          supplier_id: productData.supplier_id,
         })
-        .eq('id', id)
+        .eq('id', productId)
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Erro ao atualizar produto:', error);
+        throw error;
+      }
+
+      console.log('✅ Produto atualizado:', data);
+
+      // Atualizar as variantes
+      for (const variant of productData.variants) {
+        if (variant.id) {
+          // Atualizar variante existente
+          const { error: variantUpdateError } = await supabase
+            .from('product_variants')
+            .update({
+              sku: variant.sku,
+              ean: variant.ean,
+              cod_fabricante: variant.cod_fabricante,
+              tamanho: variant.tamanho,
+              cor: variant.cor,
+              preco_custo: variant.preco_custo || 0,
+              margem_lucro: variant.margem_lucro || 0,
+              preco_base: variant.preco_base,
+              preco_manual: variant.preco_manual || false,
+              estoque_atual: variant.estoque_atual,
+              estoque_minimo: variant.estoque_minimo,
+            })
+            .eq('id', variant.id);
+
+          if (variantUpdateError) {
+            console.error('❌ Erro ao atualizar variante:', variantUpdateError);
+            throw variantUpdateError;
+          }
+        } else {
+          // Criar nova variante
+          const { error: variantCreateError } = await supabase
+            .from('product_variants')
+            .insert({
+              product_id: productId,
+              sku: variant.sku,
+              ean: variant.ean,
+              cod_fabricante: variant.cod_fabricante,
+              tamanho: variant.tamanho,
+              cor: variant.cor,
+              preco_custo: variant.preco_custo || 0,
+              margem_lucro: variant.margem_lucro || 0,
+              preco_base: variant.preco_base,
+              preco_manual: variant.preco_manual || false,
+              estoque_atual: variant.estoque_atual,
+              estoque_minimo: variant.estoque_minimo,
+            });
+
+          if (variantCreateError) {
+            console.error('❌ Erro ao criar variante:', variantCreateError);
+            throw variantCreateError;
+          }
+        }
+      }
 
       toast({
         title: "Sucesso",

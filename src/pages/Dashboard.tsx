@@ -7,63 +7,62 @@ import {
   Users, 
   ShoppingCart,
   DollarSign,
-  AlertTriangle
+  AlertTriangle,
+  Loader2
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useDashboard } from "@/hooks/useDashboard";
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  // Mock data - will be replaced with real data from API
-  const stats = [
+  const { stats, alerts, recentSales, loading } = useDashboard();
+
+  // Configuração dos cards de estatísticas
+  const statsConfig = [
     {
       title: "Vendas Hoje",
-      value: "R$ 2.847,50",
-      change: "+12.5%",
+      value: stats?.salesToday.value || "R$ 0,00",
+      change: stats?.salesToday.change || "0%",
       icon: DollarSign,
       color: "text-success"
     },
     {
       title: "Produtos",
-      value: "347",
-      change: "+3",
+      value: stats?.totalProducts.value || "0",
+      change: stats?.totalProducts.change || "0",
       icon: Package,
       color: "text-primary"
     },
     {
       title: "Clientes",
-      value: "1.245",
-      change: "+28",
+      value: stats?.totalCustomers.value || "0",
+      change: stats?.totalCustomers.change || "0",
       icon: Users,
       color: "text-accent-foreground"
     },
     {
       title: "Vendas do Mês",
-      value: "R$ 45.673,20",
-      change: "+18.2%",
+      value: stats?.salesThisMonth.value || "R$ 0,00",
+      change: stats?.salesThisMonth.change || "0%",
       icon: TrendingUp,
       color: "text-success"
     },
   ];
 
-  const alerts = [
-    {
-      type: "Estoque Baixo",
-      message: "5 produtos com estoque abaixo do mínimo",
-      severity: "warning"
-    },
-    {
-      type: "Venda Pendente",
-      message: "2 vendas fiado vencidas",
-      severity: "danger"
-    }
-  ];
-
   return (
     <Layout title="Dashboard">
       <div className="space-y-6">
+        {/* Loading State */}
+        {loading && (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin" />
+            <span className="ml-2">Carregando dados...</span>
+          </div>
+        )}
+
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {stats.map((stat, index) => (
+          {statsConfig.map((stat, index) => (
             <Card key={index} className="card-elevated hover:shadow-xl transition-shadow">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -117,21 +116,27 @@ const Dashboard = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {alerts.map((alert, index) => (
-                <div
-                  key={index}
-                  className={`p-3 rounded-lg border-l-4 ${
-                    alert.severity === 'warning' 
-                      ? 'bg-warning/10 border-warning' 
-                      : 'bg-destructive/10 border-destructive'
-                  }`}
-                >
-                  <div className="font-medium text-sm">{alert.type}</div>
-                  <div className="text-xs text-muted-foreground mt-1">
-                    {alert.message}
+              {alerts && alerts.length > 0 ? (
+                alerts.map((alert, index) => (
+                  <div
+                    key={index}
+                    className={`p-3 rounded-lg border-l-4 ${
+                      alert.severity === 'warning' 
+                        ? 'bg-warning/10 border-warning' 
+                        : 'bg-destructive/10 border-destructive'
+                    }`}
+                  >
+                    <div className="font-medium text-sm">{alert.type}</div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {alert.message}
+                    </div>
                   </div>
+                ))
+              ) : (
+                <div className="text-sm text-muted-foreground text-center py-4">
+                  Nenhum alerta no momento
                 </div>
-              ))}
+              )}
             </CardContent>
           </Card>
         </div>
@@ -143,20 +148,26 @@ const Dashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {[1, 2, 3].map((_, index) => (
-                <div key={index} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
-                  <div>
-                    <div className="font-medium">#VD-{String(index + 1).padStart(4, '0')}</div>
-                    <div className="text-sm text-muted-foreground">
-                      Cliente: Maria Silva - {new Date().toLocaleTimeString()}
+              {recentSales && recentSales.length > 0 ? (
+                recentSales.map((sale, index) => (
+                  <div key={sale.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
+                    <div>
+                      <div className="font-medium">#{sale.id.slice(0, 8)}</div>
+                      <div className="text-sm text-muted-foreground">
+                        Cliente: {sale.customer_name} - {new Date(sale.created_at).toLocaleString('pt-BR')}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-semibold">R$ {sale.total_liquido.toFixed(2).replace('.', ',')}</div>
+                      <div className="text-sm text-success">{sale.status}</div>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className="font-semibold">R$ {(Math.random() * 500 + 50).toFixed(2)}</div>
-                    <div className="text-sm text-success">Concluída</div>
-                  </div>
+                ))
+              ) : (
+                <div className="text-sm text-muted-foreground text-center py-4">
+                  Nenhuma venda recente
                 </div>
-              ))}
+              )}
             </div>
           </CardContent>
         </Card>

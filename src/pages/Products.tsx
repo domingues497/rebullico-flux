@@ -104,6 +104,7 @@ const Products = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead>Produto</TableHead>
+                  <TableHead>Código Interno</TableHead>
                   <TableHead>SKU/EAN</TableHead>
                   <TableHead>Cód. Fabricante</TableHead>
                   <TableHead>Variante</TableHead>
@@ -116,13 +117,13 @@ const Products = () => {
               <TableBody>
                 {loading ? (
                   <TableRow key="loading">
-                    <TableCell colSpan={8} className="text-center">
+                    <TableCell colSpan={9} className="text-center">
                       Carregando produtos...
                     </TableCell>
                   </TableRow>
                 ) : filteredProducts.length === 0 ? (
                   <TableRow key="empty">
-                    <TableCell colSpan={8} className="text-center">
+                    <TableCell colSpan={9} className="text-center">
                       Nenhum produto encontrado
                     </TableCell>
                   </TableRow>
@@ -131,6 +132,9 @@ const Products = () => {
                     <TableRow key={`${product.id}-${index}`}>
                       <TableCell>
                         <div className="font-medium">{product.nome}</div>
+                      </TableCell>
+                      <TableCell className="font-mono text-sm">
+                        <Badge variant="outline">{product.cod_interno}</Badge>
                       </TableCell>
                       <TableCell className="font-mono text-sm">
                         <div>{product.sku}</div>

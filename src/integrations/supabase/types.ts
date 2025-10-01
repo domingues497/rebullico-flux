@@ -258,26 +258,73 @@ export type Database = {
           },
         ]
       }
+      brands: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          descricao: string | null
+          id: string
+          nome: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          nome: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          nome?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       product_groups: {
         Row: {
+          ativo: boolean
           created_at: string
           estoque_minimo_default: number | null
           id: string
+          nivel: number
           nome: string
+          parent_id: string | null
+          updated_at: string
         }
         Insert: {
+          ativo?: boolean
           created_at?: string
           estoque_minimo_default?: number | null
           id?: string
+          nivel?: number
           nome: string
+          parent_id?: string | null
+          updated_at?: string
         }
         Update: {
+          ativo?: boolean
           created_at?: string
           estoque_minimo_default?: number | null
           id?: string
+          nivel?: number
           nome?: string
+          parent_id?: string | null
+          updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "product_groups_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "product_groups"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       product_images: {
         Row: {
@@ -366,6 +413,7 @@ export type Database = {
       }
       products: {
         Row: {
+          brand_id: string | null
           cod_interno: string
           created_at: string
           descricao: string | null
@@ -373,8 +421,11 @@ export type Database = {
           grupo_id: string | null
           id: string
           nome: string
+          supplier_id: string | null
+          updated_at: string
         }
         Insert: {
+          brand_id?: string | null
           cod_interno: string
           created_at?: string
           descricao?: string | null
@@ -382,8 +433,11 @@ export type Database = {
           grupo_id?: string | null
           id?: string
           nome: string
+          supplier_id?: string | null
+          updated_at?: string
         }
         Update: {
+          brand_id?: string | null
           cod_interno?: string
           created_at?: string
           descricao?: string | null
@@ -391,13 +445,29 @@ export type Database = {
           grupo_id?: string | null
           id?: string
           nome?: string
+          supplier_id?: string | null
+          updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "products_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "products_grupo_id_fkey"
             columns: ["grupo_id"]
             isOneToOne: false
             referencedRelation: "product_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "products_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
             referencedColumns: ["id"]
           },
         ]
@@ -810,6 +880,41 @@ export type Database = {
       }
     }
     Views: {
+      v_product_categories: {
+        Row: {
+          ativo: boolean | null
+          full_path: string | null
+          id: string | null
+          nivel: number | null
+          nome: string | null
+          parent_id: string | null
+          path_array: string[] | null
+        }
+        Relationships: []
+      }
+      v_products_complete: {
+        Row: {
+          brand_id: string | null
+          brand_name: string | null
+          category_full_path: string | null
+          category_id: string | null
+          category_level: number | null
+          category_name: string | null
+          category_parent_id: string | null
+          cod_interno: string | null
+          created_at: string | null
+          descricao: string | null
+          ean_default: string | null
+          id: string | null
+          nome: string | null
+          parent_category_name: string | null
+          supplier_document: string | null
+          supplier_id: string | null
+          supplier_name: string | null
+          updated_at: string | null
+        }
+        Relationships: []
+      }
       v_stock_balance: {
         Row: {
           cor: string | null

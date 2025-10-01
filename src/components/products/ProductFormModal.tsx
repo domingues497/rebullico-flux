@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -12,6 +13,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Plus, Trash2, Upload, Image, Link as LinkIcon, Info } from 'lucide-react';
 import { useProducts } from '@/hooks/useProducts';
+import { useBrands } from '@/hooks/useBrands';
+import { useSuppliers } from '@/hooks/useSuppliers';
 import { useToast } from '@/hooks/use-toast';
 
 interface ProductFormModalProps {
@@ -34,6 +37,7 @@ interface VariantForm {
   preco_custo: number;
   margem_lucro: number;
   preco_base: number;
+  preco_manual: boolean; // Controla se o preço é definido manualmente
   estoque_atual: number;
   estoque_minimo: number;
 }
@@ -41,6 +45,8 @@ interface VariantForm {
 export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialSku, initialEan, onSuccess }: ProductFormModalProps) => {
   const { toast } = useToast();
   const { groups, createProduct, updateProduct, createVariant, updateVariant: updateVariantAPI, uploadProductImage, addProductImageUrl, getProduct } = useProducts();
+  const { brands } = useBrands();
+  const { suppliers } = useSuppliers();
   const [loading, setLoading] = useState(false);
   const [loadingProduct, setLoadingProduct] = useState(false);
   
@@ -49,6 +55,8 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
     descricao: '',
     grupo_id: '',
     cod_interno: '',
+    brand_id: '',
+    supplier_id: '',
   });
 
   const [variants, setVariants] = useState<VariantForm[]>([{
@@ -60,6 +68,7 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
     preco_custo: 0,
     margem_lucro: 0,
     preco_base: 0,
+    preco_manual: false, // Por padrão, preço é calculado automaticamente
     estoque_atual: 0,
     estoque_minimo: 0
   }]);
@@ -80,13 +89,16 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
       const productData = {
         ...formData,
         variants: variants.map(variant => ({
-          id: variant.id,
+          ...(variant.id && { id: variant.id }), // Só incluir id se existir
           sku: variant.sku,
           ean: variant.ean,
           cod_fabricante: variant.cod_fabricante,
           tamanho: variant.tamanho,
           cor: variant.cor,
+          preco_custo: variant.preco_custo,
+          margem_lucro: variant.margem_lucro,
           preco_base: variant.preco_base,
+          preco_manual: variant.preco_manual,
           estoque_atual: variant.estoque_atual,
           estoque_minimo: variant.estoque_minimo,
         }))
@@ -130,7 +142,9 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
       nome: '',
       descricao: '',
       grupo_id: '',
-      cod_interno: ''
+      cod_interno: '',
+      brand_id: '',
+      supplier_id: '',
     });
     setVariants([{
       sku: initialSku || '',
@@ -159,6 +173,7 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
       preco_custo: 0,
       margem_lucro: 0,
       preco_base: 0,
+      preco_manual: false, // Nova variante começa com preço automático
       estoque_atual: 0,
       estoque_minimo: 0
     }]);
@@ -170,12 +185,46 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
     }
   };
 
-  const updateVariantForm = (index: number, field: keyof VariantForm, value: string | number) => {
+  const updateVariantForm = (index: number, field: keyof VariantForm, value: string | number | boolean) => {
     const newVariants = [...variants];
     newVariants[index] = { ...newVariants[index], [field]: value };
     
-    // Calcular preço automaticamente quando custo ou margem mudarem
-    if (field === 'preco_custo' || field === 'margem_lucro') {
+    // Se mudou para preço manual, não calcular automaticamente
+    if (field === 'preco_manual' && value === true) {
+      setVariants(newVariants);
+      return;
+    }
+    
+    // Se mudou para preço automático, recalcular
+    if (field === 'preco_manual' && value === false) {
+      const custo = newVariants[index].preco_custo;
+      const margem = newVariants[index].margem_lucro;
+      
+      if (custo > 0 && margem >= 0 && margem < 100) {
+        const margemDecimal = margem / 100;
+        const precoVenda = custo / (1 - margemDecimal);
+        newVariants[index].preco_base = Math.round(precoVenda * 100) / 100;
+      }
+      setVariants(newVariants);
+      return;
+    }
+    
+    // Se alterou o preço de venda manualmente, calcular a margem automaticamente
+    if (field === 'preco_base' && newVariants[index].preco_manual) {
+      const custo = newVariants[index].preco_custo;
+      const precoVenda = Number(value);
+      
+      if (custo > 0 && precoVenda > 0) {
+        // Fórmula: Margem = (1 - (Custo / Preço de Venda)) * 100
+        const margem = (1 - (custo / precoVenda)) * 100;
+        newVariants[index].margem_lucro = Math.round(margem * 100) / 100; // Arredondar para 2 casas decimais
+      }
+      setVariants(newVariants);
+      return;
+    }
+    
+    // Calcular preço automaticamente apenas se não for manual
+    if (!newVariants[index].preco_manual && (field === 'preco_custo' || field === 'margem_lucro')) {
       const custo = field === 'preco_custo' ? Number(value) : newVariants[index].preco_custo;
       const margem = field === 'margem_lucro' ? Number(value) : newVariants[index].margem_lucro;
       
@@ -186,7 +235,7 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
         newVariants[index].preco_base = Math.round(precoVenda * 100) / 100; // Arredondar para 2 casas decimais
       }
     }
-    
+
     setVariants(newVariants);
   };
 
@@ -233,7 +282,9 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
           nome: result.nome || '',
           descricao: result.descricao || '',
           grupo_id: result.grupo_id || '',
-          cod_interno: result.cod_interno || ''
+          cod_interno: result.cod_interno || '',
+          brand_id: result.brand_id || '',
+          supplier_id: result.supplier_id || ''
         };
         console.log('📝 Novos dados do formulário:', newFormData);
         setFormData(newFormData);
@@ -247,9 +298,10 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
             cod_fabricante: variant.cod_fabricante || '',
             tamanho: variant.tamanho || '',
             cor: variant.cor || '',
-            preco_custo: 0, // Campo não existe na tabela, calcular ou manter 0
-            margem_lucro: 0, // Campo não existe na tabela, calcular ou manter 0
+            preco_custo: Number(variant.preco_custo) || 0,
+            margem_lucro: Number(variant.margem_lucro) || 0,
             preco_base: Number(variant.preco_base) || 0,
+            preco_manual: variant.preco_manual !== undefined ? variant.preco_manual : true,
             estoque_atual: variant.estoque_atual || 0,
             estoque_minimo: variant.estoque_minimo || 0
           }));
@@ -338,14 +390,14 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
               </div>
 
               <div>
-                <Label htmlFor="grupo_id">Grupo</Label>
+                <Label htmlFor="grupo_id">Categoria</Label>
                 <Select
                   value={formData.grupo_id}
                   onValueChange={(value) => setFormData({ ...formData, grupo_id: value })}
                   disabled={isReadonly}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Selecione um grupo" />
+                    <SelectValue placeholder="Selecione uma categoria" />
                   </SelectTrigger>
                   <SelectContent>
                     {groups.map((group) => (
@@ -356,6 +408,62 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
                   </SelectContent>
                 </Select>
               </div>
+
+              <div>
+                <Label htmlFor="brand_id">Marca</Label>
+                <Select
+                  value={formData.brand_id}
+                  onValueChange={(value) => setFormData({ ...formData, brand_id: value })}
+                  disabled={isReadonly}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione uma marca" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {brands.map((brand) => (
+                      <SelectItem key={brand.id} value={brand.id}>
+                        {brand.nome}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="supplier_id">Fornecedor</Label>
+                <Select
+                  value={formData.supplier_id}
+                  onValueChange={(value) => setFormData({ ...formData, supplier_id: value })}
+                  disabled={isReadonly}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione um fornecedor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {suppliers.map((supplier) => (
+                      <SelectItem key={supplier.id} value={supplier.id}>
+                        {supplier.nome}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {mode === 'edit' && (
+                <div className="md:col-span-2">
+                  <Label htmlFor="cod_interno">Código Interno</Label>
+                  <Input
+                    id="cod_interno"
+                    value={formData.cod_interno}
+                    placeholder="Código gerado automaticamente"
+                    disabled={true}
+                    className="bg-muted"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Este código é gerado automaticamente pelo sistema
+                  </p>
+                </div>
+              )}
 
 
             </CardContent>
@@ -451,19 +559,18 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
                         />
                       </div>
                       <div>
-                        <Label>Preço de Custo *</Label>
+                        <Label>Preço de Custo</Label>
                         <Input
                           type="number"
                           step="0.01"
                           value={variant.preco_custo}
                           onChange={(e) => updateVariantForm(index, 'preco_custo', parseFloat(e.target.value) || 0)}
                           placeholder="100,00"
-                          required
-                          disabled={isReadonly}
+                          disabled={isReadonly || variant.preco_manual}
                         />
                       </div>
                       <div>
-                        <Label>Margem de Lucro (%) *</Label>
+                        <Label>Margem de Lucro (%)</Label>
                         <Input
                           type="number"
                           step="0.01"
@@ -472,23 +579,38 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
                           value={variant.margem_lucro}
                           onChange={(e) => updateVariantForm(index, 'margem_lucro', parseFloat(e.target.value) || 0)}
                           placeholder="14"
-                          required
-                          disabled={isReadonly}
+                          disabled={isReadonly || variant.preco_manual}
                         />
                       </div>
                       <div>
-                        <Label>Preço de Venda</Label>
+                        <div className="flex items-center justify-between mb-2">
+                          <Label>Preço de Venda</Label>
+                          <div className="flex items-center space-x-2">
+                            <Label htmlFor={`manual-price-${index}`} className="text-xs">
+                              Manual
+                            </Label>
+                            <Switch
+                              id={`manual-price-${index}`}
+                              checked={variant.preco_manual}
+                              onCheckedChange={(checked) => updateVariantForm(index, 'preco_manual', checked)}
+                              disabled={isReadonly}
+                            />
+                          </div>
+                        </div>
                         <Input
                           type="number"
                           step="0.01"
                           value={variant.preco_base}
                           onChange={(e) => updateVariantForm(index, 'preco_base', parseFloat(e.target.value) || 0)}
                           placeholder="0,00"
-                          className="bg-muted"
-                          disabled={true}
+                          className={variant.preco_manual ? "" : "bg-muted"}
+                          disabled={isReadonly || !variant.preco_manual}
                         />
                         <p className="text-xs text-muted-foreground mt-1">
-                          Calculado automaticamente: Custo ÷ (1 - Margem%)
+                          {variant.preco_manual 
+                            ? "Preço definido manualmente" 
+                            : "Calculado automaticamente: Custo ÷ (1 - Margem%)"
+                          }
                         </p>
                       </div>
                     </div>
