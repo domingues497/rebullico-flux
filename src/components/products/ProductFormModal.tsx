@@ -47,8 +47,7 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
   const [formData, setFormData] = useState({
     nome: '',
     descricao: '',
-    codigo_interno: '',
-    grupo_id: ''
+    grupo_id: '',
   });
 
   const [variants, setVariants] = useState<VariantForm[]>([{
@@ -129,7 +128,6 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
     setFormData({
       nome: '',
       descricao: '',
-      codigo_interno: '',
       grupo_id: ''
     });
     setVariants([{
@@ -232,7 +230,6 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
         const newFormData = {
           nome: result.nome || '',
           descricao: result.descricao || '',
-          codigo_interno: result.codigo_interno || '',
           grupo_id: result.grupo_id || ''
         };
         console.log('📝 Novos dados do formulário:', newFormData);
@@ -334,17 +331,6 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
                   onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
                   placeholder="Descrição detalhada do produto"
                   disabled={isReadonly}
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="codigo_interno">Código Interno</Label>
-                <Input
-                  id="codigo_interno"
-                  value={formData.codigo_interno}
-                  onChange={(e) => setFormData({ ...formData, codigo_interno: e.target.value })}
-                  placeholder="COD001"
-                  disabled={true}
                 />
               </div>
 

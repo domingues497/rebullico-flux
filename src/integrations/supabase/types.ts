@@ -366,7 +366,6 @@ export type Database = {
       }
       products: {
         Row: {
-          codigo_interno: string | null
           created_at: string
           descricao: string | null
           grupo_id: string | null
@@ -375,7 +374,6 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
-          codigo_interno?: string | null
           created_at?: string
           descricao?: string | null
           grupo_id?: string | null
@@ -384,7 +382,6 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
-          codigo_interno?: string | null
           created_at?: string
           descricao?: string | null
           grupo_id?: string | null

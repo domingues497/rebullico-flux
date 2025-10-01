@@ -6,7 +6,6 @@ export interface Product {
   id: string;
   nome: string;
   descricao?: string;
-  codigo_interno?: string;
   grupo_id?: string;
   grupo_nome?: string;
 }
@@ -38,7 +37,6 @@ export interface StockBalanceView {
   variant_id: string;
   nome: string;
   descricao?: string;
-  codigo_interno?: string;
   grupo_id?: string;
   grupo_nome?: string;
   sku: string;
@@ -55,7 +53,6 @@ export interface ProductWithVariant {
   id: string;
   nome: string;
   descricao?: string;
-  cod_interno: string;
   grupo_id?: string;
   created_at: string;
   variant_id: string;
@@ -103,7 +100,6 @@ export const useProducts = () => {
             id,
             nome,
             descricao,
-            codigo_interno,
             grupo_id,
             product_groups (nome)
           )
@@ -147,7 +143,6 @@ export const useProducts = () => {
         variant_id: item.id,
         nome: item.products.nome,
         descricao: item.products.descricao,
-        codigo_interno: item.products.codigo_interno,
         grupo_id: item.products.grupo_id,
         grupo_nome: item.products.product_groups?.nome,
         sku: item.sku,
@@ -229,7 +224,6 @@ export const useProducts = () => {
             id,
             nome,
             descricao,
-            codigo_interno,
             grupo_id,
             created_at
           )
@@ -250,7 +244,6 @@ export const useProducts = () => {
         id: data.product_id,
         nome: data.products.nome,
         descricao: data.products.descricao,
-        codigo_interno: data.products.codigo_interno,
         grupo_id: data.products.grupo_id,
         created_at: data.products.created_at,
         variant_id: data.id,
@@ -288,7 +281,6 @@ export const useProducts = () => {
   const createProduct = async (productData: {
     nome: string;
     descricao?: string;
-    codigo_interno?: string;
     grupo_id?: string;
     variants: Array<{
       sku: string;
@@ -302,18 +294,11 @@ export const useProducts = () => {
     }>;
   }) => {
     try {
-      // Generate auto internal code
-      const { data: codeData, error: codeError } = await supabase
-        .rpc('generate_product_code');
-
-      if (codeError) throw codeError;
-
       const { data: product, error } = await supabase
         .from('products')
         .insert([{
           nome: productData.nome,
           descricao: productData.descricao,
-          codigo_interno: codeData,
           grupo_id: productData.grupo_id
         }])
         .select()
@@ -363,7 +348,6 @@ export const useProducts = () => {
   const updateProduct = async (id: string, productData: {
     nome: string;
     descricao?: string;
-    codigo_interno?: string;
     grupo_id?: string;
     variants: Array<{
       id?: string;
@@ -383,7 +367,6 @@ export const useProducts = () => {
         .update({
           nome: productData.nome,
           descricao: productData.descricao,
-          codigo_interno: productData.codigo_interno,
           grupo_id: productData.grupo_id,
         })
         .eq('id', id)
