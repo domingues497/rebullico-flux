@@ -48,6 +48,7 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
     nome: '',
     descricao: '',
     grupo_id: '',
+    cod_interno: '',
   });
 
   const [variants, setVariants] = useState<VariantForm[]>([{
@@ -230,7 +231,8 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
         const newFormData = {
           nome: result.nome || '',
           descricao: result.descricao || '',
-          grupo_id: result.grupo_id || ''
+          grupo_id: result.grupo_id || '',
+          cod_interno: result.cod_interno || ''
         };
         console.log('📝 Novos dados do formulário:', newFormData);
         setFormData(newFormData);
@@ -353,6 +355,8 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
                   </SelectContent>
                 </Select>
               </div>
+
+
             </CardContent>
           </Card>
 

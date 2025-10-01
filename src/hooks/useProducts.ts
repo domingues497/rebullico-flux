@@ -101,39 +101,12 @@ export const useProducts = () => {
             nome,
             descricao,
             grupo_id,
-            product_groups (nome)
+            cod_interno,
+            created_at
           )
         `);
 
       if (error) throw error;
-
-      // Handle variants update
-      if (productData.variants && productData.variants.length > 0) {
-        // Delete existing variants
-        await supabase
-          .from('product_variants')
-          .delete()
-          .eq('product_id', id);
-
-        // Insert new variants
-        const variantsToInsert = productData.variants.map(variant => ({
-          product_id: id,
-          sku: variant.sku,
-          ean: variant.ean,
-          cod_fabricante: variant.cod_fabricante,
-          tamanho: variant.tamanho,
-          cor: variant.cor,
-          preco_base: variant.preco_base,
-          estoque_atual: variant.estoque_atual,
-          estoque_minimo: variant.estoque_minimo,
-        }));
-
-        const { error: variantsError } = await supabase
-          .from('product_variants')
-          .insert(variantsToInsert);
-
-        if (variantsError) throw variantsError;
-      }
 
       console.log('🔍 Dados recebidos do Supabase:', data);
 
@@ -245,6 +218,7 @@ export const useProducts = () => {
         nome: data.products.nome,
         descricao: data.products.descricao,
         grupo_id: data.products.grupo_id,
+        cod_interno: data.products.cod_interno,
         created_at: data.products.created_at,
         variant_id: data.id,
         sku: data.sku,
@@ -349,6 +323,7 @@ export const useProducts = () => {
     nome: string;
     descricao?: string;
     grupo_id?: string;
+    cod_interno: string;
     variants: Array<{
       id?: string;
       sku: string;
@@ -368,6 +343,7 @@ export const useProducts = () => {
           nome: productData.nome,
           descricao: productData.descricao,
           grupo_id: productData.grupo_id,
+          cod_interno: productData.cod_interno,
         })
         .eq('id', id)
         .select()

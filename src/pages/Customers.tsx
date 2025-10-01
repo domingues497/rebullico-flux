@@ -228,28 +228,6 @@ function CustomerFormDialog({
 
 /* ====================== Página /customers ======================= */
 
-interface Customer {
-  id: string;
-  nome: string;
-  email?: string;
-  telefone?: string;
-  cpf_cnpj?: string;
-  endereco?: string;
-  cidade?: string;
-  estado?: string;
-  cep?: string;
-  grupo_id?: string;
-  created_at: string;
-}
-
-interface CustomerGroup {
-  id: string;
-  nome: string;
-  descricao?: string;
-  desconto_percentual?: number;
-  created_at: string;
-}
-
 const Customers = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [customers, setCustomers] = useState<Customer[]>([]);
