@@ -200,9 +200,10 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
       const custo = newVariants[index].preco_custo;
       const margem = newVariants[index].margem_lucro;
       
-      if (custo > 0 && margem >= 0 && margem < 100) {
+      if (custo > 0 && margem >= 0) {
+        // Fórmula correta: Preço de Venda = Custo × (1 + Margem/100)
         const margemDecimal = margem / 100;
-        const precoVenda = custo / (1 - margemDecimal);
+        const precoVenda = custo * (1 + margemDecimal);
         newVariants[index].preco_base = Math.round(precoVenda * 100) / 100;
       }
       setVariants(newVariants);
@@ -215,8 +216,9 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
       const precoVenda = Number(value);
       
       if (custo > 0 && precoVenda > 0) {
-        // Fórmula: Margem = (1 - (Custo / Preço de Venda)) * 100
-        const margem = (1 - (custo / precoVenda)) * 100;
+        // Fórmula correta: Margem = ((Preço de Venda - Custo) / Custo) * 100
+        // Exemplo: Preço R$ 3,00 e Custo R$ 1,00 = ((3 - 1) / 1) * 100 = 200%
+        const margem = ((precoVenda - custo) / custo) * 100;
         newVariants[index].margem_lucro = Math.round(margem * 100) / 100; // Arredondar para 2 casas decimais
       }
       setVariants(newVariants);
@@ -228,10 +230,11 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
       const custo = field === 'preco_custo' ? Number(value) : newVariants[index].preco_custo;
       const margem = field === 'margem_lucro' ? Number(value) : newVariants[index].margem_lucro;
       
-      if (custo > 0 && margem >= 0 && margem < 100) {
-        // Fórmula: Preço de Venda = Preço de Custo ÷ (1 – Margem de Lucro)
+      if (custo > 0 && margem >= 0) {
+        // Fórmula correta: Preço de Venda = Custo × (1 + Margem/100)
+        // Exemplo: Custo R$ 1,00 com margem 200% = R$ 1,00 × (1 + 2) = R$ 3,00
         const margemDecimal = margem / 100;
-        const precoVenda = custo / (1 - margemDecimal);
+        const precoVenda = custo * (1 + margemDecimal);
         newVariants[index].preco_base = Math.round(precoVenda * 100) / 100; // Arredondar para 2 casas decimais
       }
     }
@@ -575,7 +578,7 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
                           type="number"
                           step="0.01"
                           min="0"
-                          max="99.99"
+                          max="999.99"
                           value={variant.margem_lucro}
                           onChange={(e) => updateVariantForm(index, 'margem_lucro', parseFloat(e.target.value) || 0)}
                           placeholder="14"
