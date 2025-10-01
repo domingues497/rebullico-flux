@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -102,11 +102,16 @@ export const useProducts = () => {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  const fetchProducts = async () => {
+  const fetchProducts = useCallback(async (filters?: {
+    searchTerm?: string;
+    categoryId?: string;
+    brandId?: string;
+  }) => {
     setLoading(true);
     try {
-      console.log('🔍 Buscando produtos...');
-      const { data, error } = await supabase
+      console.log('🔍 Buscando produtos com filtros:', filters);
+      
+      let query = supabase
         .from('product_variants')
         .select(`
           id,
@@ -135,13 +140,41 @@ export const useProducts = () => {
             suppliers (
               id,
               nome
+            ),
+            product_groups (
+              id,
+              nome
             )
           )
         `);
 
-      if (error) throw error;
+      // Apply filters
+      if (filters?.searchTerm) {
+        const searchTerm = `%${filters.searchTerm.toLowerCase()}%`;
+        console.log('🔍 Aplicando filtro de busca:', searchTerm);
+        query = query.or(`products.nome.ilike."${searchTerm}",sku.ilike."${searchTerm}",ean.ilike."${searchTerm}",cod_fabricante.ilike."${searchTerm}",products.cod_interno.ilike."${searchTerm}"`);
+      }
+
+      if (filters?.categoryId) {
+        console.log('🔍 Aplicando filtro de categoria:', filters.categoryId);
+        query = query.eq('products.grupo_id', filters.categoryId);
+      }
+
+      if (filters?.brandId) {
+        console.log('🔍 Aplicando filtro de marca:', filters.brandId);
+        query = query.eq('products.brand_id', filters.brandId);
+      }
+
+      console.log('🔍 Query final construída');
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('❌ Erro na query do Supabase:', error);
+        throw error;
+      }
 
       console.log('🔍 Dados recebidos do Supabase:', data);
+      console.log('🔍 Quantidade de registros:', data?.length || 0);
 
       const groupedProducts = data?.map((item: any) => ({
         id: item.id,
@@ -193,7 +226,7 @@ export const useProducts = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
   const fetchGroups = async () => {
     try {

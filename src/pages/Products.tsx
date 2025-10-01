@@ -1,9 +1,16 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Layout } from "@/components/layout/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -17,26 +24,45 @@ import {
   Search,
   Edit,
   Eye,
-  AlertTriangle
+  AlertTriangle,
+  Filter,
+  X
 } from "lucide-react";
 import { useProducts } from "@/hooks/useProducts";
+import { useBrands } from "@/hooks/useBrands";
 import { ProductFormModal } from "@/components/products/ProductFormModal";
 
 const Products = () => {
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [selectedBrand, setSelectedBrand] = useState<string>("all");
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState<string>();
   const [modalMode, setModalMode] = useState<'create' | 'edit' | 'view'>('create');
-  const { products, loading, fetchProducts } = useProducts();
+  const { products, groups, loading, fetchProducts } = useProducts();
+  const { brands } = useBrands();
 
-  const filteredProducts = products.filter(product =>
-    product.nome?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.sku?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.ean?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.cod_fabricante?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Apply filters when any filter changes
+  useEffect(() => {
+    const filters = {
+      searchTerm: searchTerm || undefined,
+      categoryId: selectedCategory && selectedCategory !== "all" ? selectedCategory : undefined,
+      brandId: selectedBrand && selectedBrand !== "all" ? selectedBrand : undefined,
+    };
+    
+    console.log('🔍 Aplicando filtros:', filters);
+    fetchProducts(filters);
+  }, [searchTerm, selectedCategory, selectedBrand, fetchProducts]); // ✅ Agora fetchProducts é estável
 
   const lowStockProducts = products.filter(p => p.isLowStock);
+
+  const clearFilters = () => {
+    setSearchTerm("");
+    setSelectedCategory("all");
+    setSelectedBrand("all");
+  };
+
+  const hasActiveFilters = searchTerm || (selectedCategory && selectedCategory !== "all") || (selectedBrand && selectedBrand !== "all");
 
   const handleNewProduct = () => {
     setSelectedProductId(undefined);
@@ -78,20 +104,70 @@ const Products = () => {
         )}
 
         {/* Actions Bar */}
-        <div className="flex flex-col sm:flex-row justify-between gap-4">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar produtos..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
+        <div className="flex flex-col gap-4">
+          {/* Search and Filters Row */}
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar por nome, SKU, EAN, código..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            
+            <div className="flex gap-2">
+              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                <SelectTrigger className="w-[180px]">
+                  <Filter className="mr-2 h-4 w-4" />
+                  <SelectValue placeholder="Categoria" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas as categorias</SelectItem>
+                  {groups.map((group) => (
+                    <SelectItem key={group.id} value={group.id}>
+                      {group.nome}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={selectedBrand} onValueChange={setSelectedBrand}>
+                <SelectTrigger className="w-[180px]">
+                  <Filter className="mr-2 h-4 w-4" />
+                  <SelectValue placeholder="Marca" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas as marcas</SelectItem>
+                  {brands.map((brand) => (
+                    <SelectItem key={brand.id} value={brand.id}>
+                      {brand.nome}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {hasActiveFilters && (
+                <Button 
+                  variant="outline" 
+                  size="icon"
+                  onClick={clearFilters}
+                  title="Limpar filtros"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
           </div>
-          <Button className="btn-pos-primary" onClick={handleNewProduct}>
-            <Plus className="mr-2 h-4 w-4" />
-            Novo Produto
-          </Button>
+
+          {/* New Product Button Row */}
+          <div className="flex justify-end">
+            <Button className="btn-pos-primary" onClick={handleNewProduct}>
+              <Plus className="mr-2 h-4 w-4" />
+              Novo Produto
+            </Button>
+          </div>
         </div>
 
         {/* Products Table */}
@@ -121,14 +197,14 @@ const Products = () => {
                       Carregando produtos...
                     </TableCell>
                   </TableRow>
-                ) : filteredProducts.length === 0 ? (
+                ) : products.length === 0 ? (
                   <TableRow key="empty">
                     <TableCell colSpan={9} className="text-center">
                       Nenhum produto encontrado
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredProducts.map((product, index) => (
+                  products.map((product, index) => (
                     <TableRow key={`${product.id}-${index}`}>
                       <TableCell>
                         <div className="font-medium">{product.nome}</div>
