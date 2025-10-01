@@ -60,11 +60,11 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({
   useEffect(() => {
     const loadStoreSettings = async () => {
       try {
-        const storeName = await getSetting('store_name');
-        const cnpj = await getSetting('store_cnpj');
-        const address = await getSetting('store_address');
-        const phone = await getSetting('store_phone');
-        const email = await getSetting('store_email');
+        const storeName = await getSetting('store_name' as any);
+        const cnpj = await getSetting('store_cnpj' as any);
+        const address = await getSetting('store_address' as any);
+        const phone = await getSetting('store_phone' as any);
+        const email = await getSetting('store_email' as any);
 
         setStoreInfo({
           name: storeName ? String(storeName).replace(/"/g, '') : "Rebulliço",

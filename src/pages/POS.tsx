@@ -116,10 +116,10 @@ const POS = () => {
   // Carregar configurações da loja
   const loadStoreSettings = async () => {
     try {
-      const storeName = await getSetting('store_name');
-      const cnpj = await getSetting('store_cnpj');
-      const address = await getSetting('store_address');
-      const phone = await getSetting('store_phone');
+      const storeName = await getSetting('store_name' as any);
+      const cnpj = await getSetting('store_cnpj' as any);
+      const address = await getSetting('store_address' as any);
+      const phone = await getSetting('store_phone' as any);
 
       setStoreInfo({
         name: storeName ? String(storeName).replace(/"/g, '') : "Rebulliço",
@@ -184,7 +184,11 @@ const POS = () => {
         `);
 
       if (error) throw error;
-      setCustomers(data || []);
+      setCustomers((data || []).map(c => ({
+        ...c,
+        telefone: (c as any).telefone,
+        cpf: (c as any).cpf
+      })));
     } catch (error: unknown) {
       console.error('Error fetching customers:', error);
     }
@@ -255,12 +259,21 @@ const POS = () => {
 
   const handlePayment = async (payments: PaymentData[], observations?: string) => {
     try {
-      const result = await processSale(payments, observations);
+      const paymentsWithFees = payments.map(p => ({
+        ...p,
+        fee_percent: 0,
+        fee_amount: 0,
+        net_amount: p.amount
+      }));
+      const result = await processSale(paymentsWithFees as any, observations);
       setIsPaymentModalOpen(false);
       
       // Preparar dados do recibo e abrir modal
       if (result && result.receiptData) {
-        setReceiptData(result.receiptData);
+        setReceiptData({
+          ...result.receiptData,
+          created_at: new Date().toISOString()
+        } as any);
         setIsReceiptModalOpen(true);
       }
       
@@ -603,7 +616,7 @@ const POS = () => {
         <ReceiptModal
           isOpen={isReceiptModalOpen}
           onClose={() => setIsReceiptModalOpen(false)}
-          saleData={receiptData}
+          saleData={receiptData as any}
         />
       )}
     </Layout>

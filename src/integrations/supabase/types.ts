@@ -366,28 +366,31 @@ export type Database = {
       }
       products: {
         Row: {
+          cod_interno: string
           created_at: string
           descricao: string | null
+          ean_default: string | null
           grupo_id: string | null
           id: string
           nome: string
-          updated_at: string | null
         }
         Insert: {
+          cod_interno: string
           created_at?: string
           descricao?: string | null
+          ean_default?: string | null
           grupo_id?: string | null
           id?: string
           nome: string
-          updated_at?: string | null
         }
         Update: {
+          cod_interno?: string
           created_at?: string
           descricao?: string | null
+          ean_default?: string | null
           grupo_id?: string | null
           id?: string
           nome?: string
-          updated_at?: string | null
         }
         Relationships: [
           {
@@ -579,25 +582,76 @@ export type Database = {
       }
       settings: {
         Row: {
-          chave: string
+          allow_price_edit_seller: boolean | null
+          auto_backup: boolean | null
+          auto_print_receipt: boolean | null
+          auto_update_stock: boolean | null
+          backup_frequency_days: number | null
           created_at: string
+          currency_symbol: string | null
+          default_tax_rate: number | null
+          enable_rounding_to_05: boolean | null
           id: string
+          language: string | null
+          low_stock_alert: boolean | null
+          low_stock_threshold: number | null
+          receipt_footer: string | null
+          store_address: string | null
+          store_cnpj: string | null
+          store_email: string | null
+          store_name: string
+          store_phone: string | null
+          theme: string | null
+          track_inventory: boolean | null
           updated_at: string
-          valor: Json
         }
         Insert: {
-          chave: string
+          allow_price_edit_seller?: boolean | null
+          auto_backup?: boolean | null
+          auto_print_receipt?: boolean | null
+          auto_update_stock?: boolean | null
+          backup_frequency_days?: number | null
           created_at?: string
+          currency_symbol?: string | null
+          default_tax_rate?: number | null
+          enable_rounding_to_05?: boolean | null
           id?: string
+          language?: string | null
+          low_stock_alert?: boolean | null
+          low_stock_threshold?: number | null
+          receipt_footer?: string | null
+          store_address?: string | null
+          store_cnpj?: string | null
+          store_email?: string | null
+          store_name?: string
+          store_phone?: string | null
+          theme?: string | null
+          track_inventory?: boolean | null
           updated_at?: string
-          valor: Json
         }
         Update: {
-          chave?: string
+          allow_price_edit_seller?: boolean | null
+          auto_backup?: boolean | null
+          auto_print_receipt?: boolean | null
+          auto_update_stock?: boolean | null
+          backup_frequency_days?: number | null
           created_at?: string
+          currency_symbol?: string | null
+          default_tax_rate?: number | null
+          enable_rounding_to_05?: boolean | null
           id?: string
+          language?: string | null
+          low_stock_alert?: boolean | null
+          low_stock_threshold?: number | null
+          receipt_footer?: string | null
+          store_address?: string | null
+          store_cnpj?: string | null
+          store_email?: string | null
+          store_name?: string
+          store_phone?: string | null
+          theme?: string | null
+          track_inventory?: boolean | null
           updated_at?: string
-          valor?: Json
         }
         Relationships: []
       }
@@ -773,6 +827,10 @@ export type Database = {
       }
     }
     Functions: {
+      generate_cod_interno: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       generate_product_code: {
         Args: Record<PropertyKey, never>
         Returns: string

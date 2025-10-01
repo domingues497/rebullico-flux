@@ -1,10 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import type { Database } from '@/integrations/supabase/types';
-
-type Settings = Database['public']['Tables']['settings']['Row'];
-type SettingsUpdate = Database['public']['Tables']['settings']['Update'];
+import type { Settings, SettingsUpdate } from '@/types/settings';
 
 export const useSettings = () => {
   const [settings, setSettings] = useState<Settings | null>(null);
@@ -34,7 +31,7 @@ export const useSettings = () => {
             store_address: 'Rua da Moda, 123 - Centro',
             store_phone: '(11) 99999-9999',
             store_email: ''
-          })
+          } as any)
           .select()
           .single();
 
@@ -66,7 +63,7 @@ export const useSettings = () => {
     try {
       const { data, error } = await supabase
         .from('settings')
-        .update(updates)
+        .update(updates as any)
         .eq('id', settings.id)
         .select()
         .single();

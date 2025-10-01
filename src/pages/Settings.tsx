@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { useSettings } from "@/hooks/useSettings";
 import { useToast } from "@/hooks/use-toast";
+import type { Settings } from "@/types/settings";
 
 const Settings = () => {
   // Store Information
@@ -68,35 +69,36 @@ const Settings = () => {
   useEffect(() => {
     if (settings) {
       console.log('Carregando configurações do settings:', settings);
+      const s = settings as unknown as Settings;
       
       // Store Information
-      setStoreName(settings.store_name || "");
-      setStoreCnpj(settings.store_cnpj || "");
-      setStoreAddress(settings.store_address || "");
-      setStorePhone(settings.store_phone || "");
-      setStoreEmail(settings.store_email || "");
+      setStoreName(s.store_name || "");
+      setStoreCnpj(s.store_cnpj || "");
+      setStoreAddress(s.store_address || "");
+      setStorePhone(s.store_phone || "");
+      setStoreEmail(s.store_email || "");
 
       // POS Configuration
-      setEnableRoundingTo05(settings.enable_rounding_to_05 || false);
-      setAllowPriceEditSeller(settings.allow_price_edit_seller || false);
-      setAutoPrintReceipt(settings.auto_print_receipt || true);
-      setReceiptFooter(settings.receipt_footer || "");
+      setEnableRoundingTo05(s.enable_rounding_to_05 || false);
+      setAllowPriceEditSeller(s.allow_price_edit_seller || false);
+      setAutoPrintReceipt(s.auto_print_receipt || true);
+      setReceiptFooter(s.receipt_footer || "");
 
       // Financial Settings
-      setDefaultTaxRate(settings.default_tax_rate || 0);
-      setCurrencySymbol(settings.currency_symbol || "R$");
+      setDefaultTaxRate(s.default_tax_rate || 0);
+      setCurrencySymbol(s.currency_symbol || "R$");
 
       // Inventory Settings
-      setLowStockAlert(settings.low_stock_alert || true);
-      setLowStockThreshold(settings.low_stock_threshold || 10);
-      setAutoUpdateStock(settings.auto_update_stock || true);
-      setTrackInventory(settings.track_inventory || true);
+      setLowStockAlert(s.low_stock_alert || true);
+      setLowStockThreshold(s.low_stock_threshold || 10);
+      setAutoUpdateStock(s.auto_update_stock || true);
+      setTrackInventory(s.track_inventory || true);
 
       // System Settings
-      setAutoBackup(settings.auto_backup || false);
-      setBackupFrequencyDays(settings.backup_frequency_days || 7);
-      setTheme(settings.theme || "light");
-      setLanguage(settings.language || "pt-BR");
+      setAutoBackup(s.auto_backup || false);
+      setBackupFrequencyDays(s.backup_frequency_days || 7);
+      setTheme(s.theme || "light");
+      setLanguage(s.language || "pt-BR");
     }
   }, [settings]);
 

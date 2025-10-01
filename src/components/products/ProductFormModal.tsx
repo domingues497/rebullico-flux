@@ -239,8 +239,8 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
         setFormData(newFormData);
 
         // Carregar variantes
-        if (result.variants && result.variants.length > 0) {
-          const formattedVariants = result.variants.map((variant: any) => ({
+        if ((result as any).variants && (result as any).variants.length > 0) {
+          const formattedVariants = (result as any).variants.map((variant: any) => ({
             id: variant.id,
             sku: variant.sku || '',
             ean: variant.ean || '',
