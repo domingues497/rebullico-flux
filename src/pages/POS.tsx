@@ -35,6 +35,7 @@ interface Product {
   name: string;
   sku: string;
   ean?: string;
+  cod_fabricante?: string;
   price: number;
   stock: number;
   product_variant_id: string;
@@ -142,6 +143,7 @@ const POS = () => {
           id,
           sku,
           ean,
+          cod_fabricante,
           preco_base,
           estoque_atual,
           product:products(nome)
@@ -158,6 +160,7 @@ const POS = () => {
         name: variant.product?.nome || 'Produto sem nome',
         sku: variant.sku,
         ean: variant.ean,
+        cod_fabricante: variant.cod_fabricante,
         price: Number(variant.preco_base),
         stock: variant.estoque_atual,
       })) || [];
@@ -192,7 +195,7 @@ const POS = () => {
   };
 
   const handleBarcodeScanned = (code: string) => {
-    const product = products.find(p => p.sku === code || p.id === code || p.ean === code);
+    const product = products.find(p => p.sku === code || p.id === code || p.ean === code || p.cod_fabricante === code);
     if (product) {
       handleAddToCart(product);
     } else {
@@ -278,7 +281,8 @@ const POS = () => {
   const filteredProducts = products.filter(product =>
     product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     product.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (product.ean && product.ean.toLowerCase().includes(searchTerm.toLowerCase()))
+    (product.ean && product.ean.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (product.cod_fabricante && product.cod_fabricante.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   return (
@@ -325,6 +329,7 @@ const POS = () => {
                     <p className="text-xs text-muted-foreground">
                       SKU: {product.sku}
                       {product.ean && <span> • EAN: {product.ean}</span>}
+                      {product.cod_fabricante && <span> • Fab: {product.cod_fabricante}</span>}
                     </p>
                     <div className="flex justify-between items-center">
                       <span className="text-base font-bold text-primary">

@@ -316,6 +316,7 @@ export type Database = {
       }
       product_variants: {
         Row: {
+          cod_fabricante: string | null
           cor: string | null
           created_at: string
           ean: string | null
@@ -328,6 +329,7 @@ export type Database = {
           tamanho: string | null
         }
         Insert: {
+          cod_fabricante?: string | null
           cor?: string | null
           created_at?: string
           ean?: string | null
@@ -340,6 +342,7 @@ export type Database = {
           tamanho?: string | null
         }
         Update: {
+          cod_fabricante?: string | null
           cor?: string | null
           created_at?: string
           ean?: string | null
@@ -363,34 +366,31 @@ export type Database = {
       }
       products: {
         Row: {
-          cod_fabricante: string | null
-          cod_interno: string
+          codigo_interno: string | null
           created_at: string
           descricao: string | null
-          ean_default: string | null
           grupo_id: string | null
           id: string
           nome: string
+          updated_at: string | null
         }
         Insert: {
-          cod_fabricante?: string | null
-          cod_interno: string
+          codigo_interno?: string | null
           created_at?: string
           descricao?: string | null
-          ean_default?: string | null
           grupo_id?: string | null
           id?: string
           nome: string
+          updated_at?: string | null
         }
         Update: {
-          cod_fabricante?: string | null
-          cod_interno?: string
+          codigo_interno?: string | null
           created_at?: string
           descricao?: string | null
-          ean_default?: string | null
           grupo_id?: string | null
           id?: string
           nome?: string
+          updated_at?: string | null
         }
         Relationships: [
           {

@@ -32,7 +32,8 @@ const Products = () => {
   const filteredProducts = products.filter(product =>
     product.nome?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     product.sku?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.ean?.toLowerCase().includes(searchTerm.toLowerCase())
+    product.ean?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    product.cod_fabricante?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const lowStockProducts = products.filter(p => p.isLowStock);
@@ -104,6 +105,7 @@ const Products = () => {
                 <TableRow>
                   <TableHead>Produto</TableHead>
                   <TableHead>SKU/EAN</TableHead>
+                  <TableHead>Cód. Fabricante</TableHead>
                   <TableHead>Variante</TableHead>
                   <TableHead>Preço</TableHead>
                   <TableHead>Estoque</TableHead>
@@ -114,13 +116,13 @@ const Products = () => {
               <TableBody>
                 {loading ? (
                   <TableRow key="loading">
-                    <TableCell colSpan={7} className="text-center">
+                    <TableCell colSpan={8} className="text-center">
                       Carregando produtos...
                     </TableCell>
                   </TableRow>
                 ) : filteredProducts.length === 0 ? (
                   <TableRow key="empty">
-                    <TableCell colSpan={7} className="text-center">
+                    <TableCell colSpan={8} className="text-center">
                       Nenhum produto encontrado
                     </TableCell>
                   </TableRow>
@@ -128,7 +130,7 @@ const Products = () => {
                   filteredProducts.map((product, index) => (
                     <TableRow key={`${product.id}-${index}`}>
                       <TableCell>
-                        <div className="font-medium">{product.name}</div>
+                        <div className="font-medium">{product.nome}</div>
                       </TableCell>
                       <TableCell className="font-mono text-sm">
                         <div>{product.sku}</div>
@@ -138,24 +140,29 @@ const Products = () => {
                           </div>
                         )}
                       </TableCell>
+                      <TableCell className="font-mono text-sm">
+                        {product.cod_fabricante && (
+                          <div>{product.cod_fabricante}</div>
+                        )}
+                      </TableCell>
                       <TableCell>
                         <div className="text-sm">
-                          {product.size && <span>Tam: {product.size}</span>}
-                          {product.size && product.color && <span> • </span>}
-                          {product.color && <span>{product.color}</span>}
+                          {product.tamanho && <span>Tam: {product.tamanho}</span>}
+                          {product.tamanho && product.cor && <span> • </span>}
+                          {product.cor && <span>{product.cor}</span>}
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="font-semibold">R$ {product.price?.toFixed(2) || '0.00'}</div>
+                        <div className="font-semibold">R$ {product.preco_base?.toFixed(2) || '0.00'}</div>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center space-x-2">
                           <Badge 
-                            variant={product.isLowStock ? "destructive" : "default"}
+                            variant={product.estoque_atual < product.estoque_minimo ? "destructive" : "default"}
                           >
-                            {product.stock || 0}
+                            {product.estoque_atual || 0}
                           </Badge>
-                          {product.isLowStock && (
+                          {product.estoque_atual < product.estoque_minimo && (
                             <AlertTriangle className="h-4 w-4 text-warning" />
                           )}
                         </div>

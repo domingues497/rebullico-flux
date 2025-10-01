@@ -76,24 +76,31 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
 
     setLoading(true);
     try {
-      // Create or update product
+      // Create or update product with variants
+      const productData = {
+        ...formData,
+        variants: variants.map(variant => ({
+          id: variant.id,
+          sku: variant.sku,
+          ean: variant.ean,
+          cod_fabricante: variant.cod_fabricante,
+          tamanho: variant.tamanho,
+          cor: variant.cor,
+          preco_base: variant.preco_base,
+          estoque_atual: variant.estoque_atual,
+          estoque_minimo: variant.estoque_minimo,
+        }))
+      };
+
       let product;
       if (mode === 'create') {
-        product = await createProduct(formData);
+        product = await createProduct(productData);
       } else {
-        product = await updateProduct(productId!, formData);
+        product = await updateProduct(productId!, productData);
       }
 
-      // Create variants for new products
+      // Upload file images for new products
       if (mode === 'create' && product) {
-        for (const variant of variants) {
-          await createVariant({
-            ...variant,
-            product_id: product.id
-          });
-        }
-
-        // Upload file images
         for (let i = 0; i < images.length; i++) {
           await uploadProductImage(product.id, images[i], i === 0 && imageUrls.length === 0);
         }
@@ -225,28 +232,30 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
         const newFormData = {
           nome: result.nome || '',
           descricao: result.descricao || '',
-          codigo_interno: result.cod_interno || '',
+          codigo_interno: result.codigo_interno || '',
           grupo_id: result.grupo_id || ''
         };
         console.log('📝 Novos dados do formulário:', newFormData);
         setFormData(newFormData);
 
-        // Carregar variante (getProduct retorna apenas uma variante)
-        const formattedVariant = {
-          id: result.variant_id,
-          sku: result.sku || '',
-          ean: result.ean || '',
-          cod_fabricante: '', // Campo não existe na tabela, manter vazio
-          tamanho: result.tamanho || '',
-          cor: result.cor || '',
-          preco_custo: 0, // Campo não existe na tabela, calcular ou manter 0
-          margem_lucro: 0, // Campo não existe na tabela, calcular ou manter 0
-          preco_base: result.preco_base || 0,
-          estoque_atual: result.estoque_atual || 0,
-          estoque_minimo: result.estoque_minimo || 0
-        };
-        console.log('✅ Variante formatada:', formattedVariant);
-        setVariants([formattedVariant]);
+        // Carregar variantes
+        if (result.variants && result.variants.length > 0) {
+          const formattedVariants = result.variants.map((variant: any) => ({
+            id: variant.id,
+            sku: variant.sku || '',
+            ean: variant.ean || '',
+            cod_fabricante: variant.cod_fabricante || '',
+            tamanho: variant.tamanho || '',
+            cor: variant.cor || '',
+            preco_custo: 0, // Campo não existe na tabela, calcular ou manter 0
+            margem_lucro: 0, // Campo não existe na tabela, calcular ou manter 0
+            preco_base: Number(variant.preco_base) || 0,
+            estoque_atual: variant.estoque_atual || 0,
+            estoque_minimo: variant.estoque_minimo || 0
+          }));
+          console.log('📦 Variantes formatadas:', formattedVariants);
+          setVariants(formattedVariants);
+        }
         
         console.log('✅ Dados carregados com sucesso');
       } else {
@@ -264,7 +273,7 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
     } finally {
       setLoadingProduct(false);
     }
-  }, [productId, mode, getProduct, toast]);
+  }, [productId, mode]); // Removido getProduct e toast das dependências
 
   useEffect(() => {
     if (open && mode === 'create') {
@@ -272,7 +281,7 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
     } else if (open && (mode === 'edit' || mode === 'view') && productId) {
       loadProductData();
     }
-  }, [open, mode, productId, resetForm, loadProductData]);
+  }, [open, mode, productId]); // Removido resetForm e loadProductData das dependências
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -362,7 +371,7 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
           </Card>
 
           {/* Variantes */}
-          {mode === 'create' && (
+          {(mode === 'create' || mode === 'edit') && (
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <div>

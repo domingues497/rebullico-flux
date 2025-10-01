@@ -6,11 +6,9 @@ export interface Product {
   id: string;
   nome: string;
   descricao?: string;
-  cod_interno: string;
-  cod_fabricante?: string;
-  ean_default?: string;
+  codigo_interno?: string;
   grupo_id?: string;
-  created_at: string;
+  grupo_nome?: string;
 }
 
 export interface ProductVariant {
@@ -18,6 +16,7 @@ export interface ProductVariant {
   product_id: string;
   sku: string;
   ean?: string;
+  cod_fabricante?: string;
   tamanho?: string;
   cor?: string;
   preco_base: number;
@@ -34,22 +33,22 @@ export interface ProductGroup {
 }
 
 export interface StockBalanceView {
+  id: string;
   product_id: string;
-  product_name: string;
-  descricao?: string;
-  cod_interno: string;
-  cod_fabricante?: string;
-  ean_default?: string;
-  grupo_id?: string;
   variant_id: string;
+  nome: string;
+  descricao?: string;
+  codigo_interno?: string;
+  grupo_id?: string;
+  grupo_nome?: string;
   sku: string;
   ean?: string;
+  cod_fabricante?: string;
   tamanho?: string;
   cor?: string;
   preco_base: number;
   estoque_atual: number;
   estoque_minimo: number;
-  created_at: string;
 }
 
 export interface ProductWithVariant {
@@ -57,8 +56,6 @@ export interface ProductWithVariant {
   nome: string;
   descricao?: string;
   cod_interno: string;
-  cod_fabricante?: string;
-  ean_default?: string;
   grupo_id?: string;
   created_at: string;
   variant_id: string;
@@ -69,7 +66,7 @@ export interface ProductWithVariant {
   preco_base: number;
   estoque_atual: number;
   estoque_minimo: number;
-  // Propriedades para compatibilidade com a página Products
+  // Propriedades para compatibilidade
   name?: string;
   price?: number;
   stock?: number;
@@ -95,6 +92,7 @@ export const useProducts = () => {
           id,
           sku,
           ean,
+          cod_fabricante,
           tamanho,
           cor,
           preco_base,
@@ -105,52 +103,70 @@ export const useProducts = () => {
             id,
             nome,
             descricao,
-            cod_interno,
-            cod_fabricante,
-            ean_default,
+            codigo_interno,
             grupo_id,
-            created_at
+            product_groups (nome)
           )
         `);
 
       if (error) throw error;
 
+      // Handle variants update
+      if (productData.variants && productData.variants.length > 0) {
+        // Delete existing variants
+        await supabase
+          .from('product_variants')
+          .delete()
+          .eq('product_id', id);
+
+        // Insert new variants
+        const variantsToInsert = productData.variants.map(variant => ({
+          product_id: id,
+          sku: variant.sku,
+          ean: variant.ean,
+          cod_fabricante: variant.cod_fabricante,
+          tamanho: variant.tamanho,
+          cor: variant.cor,
+          preco_base: variant.preco_base,
+          estoque_atual: variant.estoque_atual,
+          estoque_minimo: variant.estoque_minimo,
+        }));
+
+        const { error: variantsError } = await supabase
+          .from('product_variants')
+          .insert(variantsToInsert);
+
+        if (variantsError) throw variantsError;
+      }
+
       console.log('🔍 Dados recebidos do Supabase:', data);
 
-      const groupedProducts = data?.reduce((acc: any[], item: any) => {
-        const existingProduct = acc.find(p => p.id === item.product_id);
-        if (!existingProduct) {
-          console.log('🔍 Processando produto:', item.products.nome, 'ID:', item.product_id);
-          const isLowStock = item.estoque_atual <= item.estoque_minimo;
-          acc.push({
-            id: item.product_id,
-            nome: item.products.nome,
-            descricao: item.products.descricao,
-            cod_interno: item.products.cod_interno,
-            cod_fabricante: item.products.cod_fabricante,
-            ean_default: item.products.ean_default,
-            grupo_id: item.products.grupo_id,
-            created_at: item.products.created_at,
-            variant_id: item.id,
-            sku: item.sku,
-            ean: item.ean,
-            tamanho: item.tamanho,
-            cor: item.cor,
-            preco_base: Number(item.preco_base),
-            estoque_atual: item.estoque_atual,
-            estoque_minimo: item.estoque_minimo,
-            // Propriedades para compatibilidade
-            name: item.products.nome,
-            price: Number(item.preco_base),
-            stock: item.estoque_atual,
-            minStock: item.estoque_minimo,
-            size: item.tamanho,
-            color: item.cor,
-            isLowStock: isLowStock
-          });
-        }
-        return acc;
-      }, []) || [];
+      const groupedProducts = data?.map((item: any) => ({
+        id: item.id,
+        product_id: item.products.id,
+        variant_id: item.id,
+        nome: item.products.nome,
+        descricao: item.products.descricao,
+        codigo_interno: item.products.codigo_interno,
+        grupo_id: item.products.grupo_id,
+        grupo_nome: item.products.product_groups?.nome,
+        sku: item.sku,
+        ean: item.ean,
+        cod_fabricante: item.cod_fabricante,
+        tamanho: item.tamanho,
+        cor: item.cor,
+        preco_base: item.preco_base,
+        estoque_atual: item.estoque_atual,
+        estoque_minimo: item.estoque_minimo,
+        // Propriedades para compatibilidade
+        name: item.products.nome,
+        price: Number(item.preco_base),
+        stock: item.estoque_atual,
+        minStock: item.estoque_minimo,
+        size: item.tamanho,
+        color: item.cor,
+        isLowStock: item.estoque_atual <= item.estoque_minimo
+      })) || []
 
       console.log('🔍 Produtos processados:', groupedProducts);
       
@@ -202,6 +218,7 @@ export const useProducts = () => {
           id,
           sku,
           ean,
+          cod_fabricante,
           tamanho,
           cor,
           preco_base,
@@ -212,9 +229,7 @@ export const useProducts = () => {
             id,
             nome,
             descricao,
-            cod_interno,
-            cod_fabricante,
-            ean_default,
+            codigo_interno,
             grupo_id,
             created_at
           )
@@ -235,14 +250,13 @@ export const useProducts = () => {
         id: data.product_id,
         nome: data.products.nome,
         descricao: data.products.descricao,
-        cod_interno: data.products.cod_interno,
-        cod_fabricante: data.products.cod_fabricante,
-        ean_default: data.products.ean_default,
+        codigo_interno: data.products.codigo_interno,
         grupo_id: data.products.grupo_id,
         created_at: data.products.created_at,
         variant_id: data.id,
         sku: data.sku,
         ean: data.ean,
+        cod_fabricante: data.cod_fabricante,
         tamanho: data.tamanho,
         cor: data.cor,
         preco_base: Number(data.preco_base),
@@ -271,7 +285,22 @@ export const useProducts = () => {
     }
   };
 
-  const createProduct = async (productData: Omit<Product, 'id' | 'created_at' | 'cod_interno'>) => {
+  const createProduct = async (productData: {
+    nome: string;
+    descricao?: string;
+    codigo_interno?: string;
+    grupo_id?: string;
+    variants: Array<{
+      sku: string;
+      ean?: string;
+      cod_fabricante?: string;
+      tamanho?: string;
+      cor?: string;
+      preco_base: number;
+      estoque_atual: number;
+      estoque_minimo: number;
+    }>;
+  }) => {
     try {
       // Generate auto internal code
       const { data: codeData, error: codeError } = await supabase
@@ -279,16 +308,37 @@ export const useProducts = () => {
 
       if (codeError) throw codeError;
 
-      const { data, error } = await supabase
+      const { data: product, error } = await supabase
         .from('products')
         .insert([{
-          ...productData,
-          cod_interno: codeData
+          nome: productData.nome,
+          descricao: productData.descricao,
+          codigo_interno: codeData,
+          grupo_id: productData.grupo_id
         }])
         .select()
         .single();
 
       if (error) throw error;
+
+      // Create variants for the product
+      const variantsToInsert = productData.variants.map(variant => ({
+        product_id: product.id,
+        sku: variant.sku,
+        ean: variant.ean,
+        cod_fabricante: variant.cod_fabricante,
+        tamanho: variant.tamanho,
+        cor: variant.cor,
+        preco_base: variant.preco_base,
+        estoque_atual: variant.estoque_atual,
+        estoque_minimo: variant.estoque_minimo,
+      }));
+
+      const { error: variantsError } = await supabase
+        .from('product_variants')
+        .insert(variantsToInsert);
+
+      if (variantsError) throw variantsError;
 
       toast({
         title: "Sucesso",
@@ -296,7 +346,7 @@ export const useProducts = () => {
       });
 
       await fetchProducts();
-      return data;
+      return product;
     } catch (error: unknown) {
       console.error('Error creating product:', error);
       const errorMessage = error instanceof Error ? error.message : 'Erro ao criar produto';
@@ -310,11 +360,32 @@ export const useProducts = () => {
     }
   };
 
-  const updateProduct = async (id: string, productData: Partial<Product>) => {
+  const updateProduct = async (id: string, productData: {
+    nome: string;
+    descricao?: string;
+    codigo_interno?: string;
+    grupo_id?: string;
+    variants: Array<{
+      id?: string;
+      sku: string;
+      ean?: string;
+      cod_fabricante?: string;
+      tamanho?: string;
+      cor?: string;
+      preco_base: number;
+      estoque_atual: number;
+      estoque_minimo: number;
+    }>;
+  }) => {
     try {
       const { data, error } = await supabase
         .from('products')
-        .update(productData)
+        .update({
+          nome: productData.nome,
+          descricao: productData.descricao,
+          codigo_interno: productData.codigo_interno,
+          grupo_id: productData.grupo_id,
+        })
         .eq('id', id)
         .select()
         .single();
