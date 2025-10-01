@@ -19,6 +19,8 @@ export interface CartItem {
 export interface Customer {
   id: string;
   nome: string;
+  telefone?: string;
+  cpf?: string;
   grupo_pessoas_id?: string;
   customer_group?: {
     nome: string;
@@ -27,10 +29,15 @@ export interface Customer {
 }
 
 export interface PaymentMethod {
+  id: string;
+  nome: string;
+  tipo: string;
   bandeira: string;
   taxa_percentual: number;
   parcelas: number;
   taxa_fixa: number;
+  exige_bandeira: boolean;
+  permite_parcelas: boolean;
 }
 
 export interface Payment {

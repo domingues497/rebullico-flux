@@ -42,7 +42,7 @@ serve(async (req) => {
       .eq('id', userData.user.id)
       .single();
 
-    const userRole = profile?.roles?.name;
+    const userRole = (profile as any)?.role_id;
     if (userRole !== 'admin') {
       return new Response(
         JSON.stringify({ error: "Unauthorized - Admin role required" }),
@@ -71,7 +71,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('Settings API Error:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
     );
   }

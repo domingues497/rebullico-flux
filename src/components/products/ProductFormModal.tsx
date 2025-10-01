@@ -129,7 +129,8 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
     setFormData({
       nome: '',
       descricao: '',
-      grupo_id: ''
+      grupo_id: '',
+      cod_interno: ''
     });
     setVariants([{
       sku: initialSku || '',

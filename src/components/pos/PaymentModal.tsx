@@ -24,6 +24,8 @@ interface PaymentMethod {
   id: string;
   nome: string;
   tipo: string;
+  exige_bandeira: boolean;
+  permite_parcelas: boolean;
   ativo: boolean;
 }
 

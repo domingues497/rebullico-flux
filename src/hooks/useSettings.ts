@@ -1,41 +1,10 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import type { Database } from '@/integrations/supabase/types';
 
-export interface Settings {
-  id: string;
-  store_name: string;
-  store_cnpj: string;
-  store_address: string;
-  store_phone: string;
-  store_email: string;
-  
-  // POS Configuration
-  enable_rounding_to_05: boolean;
-  allow_price_edit_seller: boolean;
-  auto_print_receipt: boolean;
-  receipt_footer: string;
-  
-  // Financial Settings
-  default_tax_rate: number;
-  currency_symbol: string;
-  
-  // Inventory Settings
-  low_stock_alert: boolean;
-  low_stock_threshold: number;
-  auto_update_stock: boolean;
-  track_inventory: boolean;
-  
-  // System Settings
-  auto_backup: boolean;
-  backup_frequency_days: number;
-  theme: string;
-  language: string;
-  
-  // Timestamps
-  created_at?: string;
-  updated_at?: string;
-}
+type Settings = Database['public']['Tables']['settings']['Row'];
+type SettingsUpdate = Database['public']['Tables']['settings']['Update'];
 
 export const useSettings = () => {
   const [settings, setSettings] = useState<Settings | null>(null);
@@ -48,27 +17,29 @@ export const useSettings = () => {
       const { data, error } = await supabase
         .from('settings')
         .select('*')
-        .single();
+        .maybeSingle();
 
       if (error) {
-        // Se não existir nenhum registro, cria um padrão
-        if (error.code === 'PGRST116') {
-          const { data: newData, error: insertError } = await supabase
-            .from('settings')
-            .insert({
-              nome: 'Minha Loja',
-              cnpj: '',
-              endereco: '',
-              telefone: null
-            })
-            .select()
-            .single();
+        console.error('Error fetching settings:', error);
+        throw error;
+      }
 
-          if (insertError) throw insertError;
-          setSettings(newData);
-        } else {
-          throw error;
-        }
+      // Se não existir configuração, criar uma padrão
+      if (!data) {
+        const { data: newData, error: insertError } = await supabase
+          .from('settings')
+          .insert({
+            store_name: 'Rebulliço',
+            store_cnpj: '',
+            store_address: 'Rua da Moda, 123 - Centro',
+            store_phone: '(11) 99999-9999',
+            store_email: ''
+          })
+          .select()
+          .single();
+
+        if (insertError) throw insertError;
+        setSettings(newData);
       } else {
         setSettings(data);
       }
@@ -84,11 +55,11 @@ export const useSettings = () => {
     }
   };
 
-  const getSetting = (key: keyof Omit<Settings, 'id' | 'created_at' | 'updated_at'>) => {
+  const getSetting = <K extends keyof Settings>(key: K): Settings[K] | null => {
     return settings ? settings[key] : null;
   };
 
-  const updateSettings = async (updates: Partial<Omit<Settings, 'id' | 'created_at' | 'updated_at'>>) => {
+  const updateSettings = async (updates: SettingsUpdate) => {
     if (!settings) return;
     
     setLoading(true);
@@ -134,3 +105,5 @@ export const useSettings = () => {
     updateSettings
   };
 };
+
+export type { Settings };

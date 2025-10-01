@@ -89,7 +89,8 @@ export function BarcodeScanner({ onCodeScanned, isOpen, onClose }: BarcodeScanne
           formats: ['code_128', 'code_39', 'ean_13', 'ean_8']
         });
         
-        const barcodes = await barcodeDetector.detect(canvas);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const barcodes = await barcodeDetector.detect(imageData);
         
         if (barcodes.length > 0) {
           const detectedCode = barcodes[0].rawValue;

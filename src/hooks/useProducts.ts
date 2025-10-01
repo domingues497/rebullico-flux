@@ -54,10 +54,12 @@ export interface ProductWithVariant {
   nome: string;
   descricao?: string;
   grupo_id?: string;
+  cod_interno?: string;
   created_at: string;
   variant_id: string;
   sku: string;
   ean?: string;
+  cod_fabricante?: string;
   tamanho?: string;
   cor?: string;
   preco_base: number;
@@ -117,6 +119,8 @@ export const useProducts = () => {
         nome: item.products.nome,
         descricao: item.products.descricao,
         grupo_id: item.products.grupo_id,
+        cod_interno: item.products.cod_interno,
+        created_at: item.products.created_at,
         grupo_nome: item.products.product_groups?.nome,
         sku: item.sku,
         ean: item.ean,
