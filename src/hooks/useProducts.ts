@@ -111,9 +111,7 @@ export const useProducts = () => {
     try {
       console.log('🔍 Buscando produtos com filtros:', filters);
       
-      let query = supabase
-        .from('product_variants')
-        .select(`
+      const baseSelect = `
           id,
           sku,
           ean,
@@ -145,15 +143,100 @@ export const useProducts = () => {
               id,
               nome
             )
-          )
-        `);
+          )`;
 
-      // Apply filters
+      // Busca com OR em colunas da variante e do produto (limitação: PostgREST não permite colunas com ponto no or lógico)
       if (filters?.searchTerm) {
-        const searchTerm = `%${filters.searchTerm.toLowerCase()}%`;
-        console.log('🔍 Aplicando filtro de busca:', searchTerm);
-        query = query.or(`products.nome.ilike.${searchTerm},sku.ilike.${searchTerm},ean.ilike.${searchTerm},cod_fabricante.ilike.${searchTerm},products.cod_interno.ilike.${searchTerm}`);
+        const term = `%${filters.searchTerm.toLowerCase()}%`;
+        console.log('🔍 Aplicando filtro de busca (estratégia dupla):', term);
+
+        let q1 = supabase
+          .from('product_variants')
+          .select(baseSelect);
+        let q2 = supabase
+          .from('product_variants')
+          .select(baseSelect);
+
+        // Filtros de categoria/marca em ambas as queries
+        if (filters?.categoryId) {
+          console.log('🔍 Aplicando filtro de categoria:', filters.categoryId);
+          q1 = q1.eq('products.grupo_id', filters.categoryId);
+          q2 = q2.eq('products.grupo_id', filters.categoryId);
+        }
+        if (filters?.brandId) {
+          console.log('🔍 Aplicando filtro de marca:', filters.brandId);
+          q1 = q1.eq('products.brand_id', filters.brandId);
+          q2 = q2.eq('products.brand_id', filters.brandId);
+        }
+
+        // OR para colunas da própria tabela (product_variants)
+        q1 = q1.or(`sku.ilike.${term},ean.ilike.${term},cod_fabricante.ilike.${term}`);
+        // OR para colunas do relacionamento products (usando foreignTable)
+        q2 = q2.or(`nome.ilike.${term},cod_interno.ilike.${term}`, { foreignTable: 'products' });
+
+        const [r1, r2] = await Promise.all([q1, q2]);
+        const d1 = r1.data || [];
+        const d2 = r2.data || [];
+        const err = r1.error || r2.error;
+        if (err) {
+          console.error('❌ Erro na query do Supabase (busca):', err);
+          throw err;
+        }
+
+        // Mesclar resultados removendo duplicados por id (id da variante)
+        const mergedMap = new Map<string, any>();
+        [...d1, ...d2].forEach((row: any) => {
+          mergedMap.set(row.id, row);
+        });
+        const data = Array.from(mergedMap.values());
+
+        console.log('🔍 Dados recebidos do Supabase (mesclado):', data);
+        console.log('🔍 Quantidade de registros:', data?.length || 0);
+
+        const groupedProducts = data?.map((item: any) => ({
+          id: item.id,
+          product_id: item.products.id,
+          variant_id: item.id,
+          nome: item.products.nome,
+          descricao: item.products.descricao,
+          grupo_id: item.products.grupo_id,
+          cod_interno: item.products.cod_interno,
+          created_at: item.products.created_at,
+          grupo_nome: item.products.product_groups?.nome,
+          brand_id: item.products.brand_id,
+          brand_name: item.products.brands?.nome,
+          supplier_id: item.products.supplier_id,
+          supplier_name: item.products.suppliers?.nome,
+          sku: item.sku,
+          ean: item.ean,
+          cod_fabricante: item.cod_fabricante,
+          tamanho: item.tamanho,
+          cor: item.cor,
+          preco_base: item.preco_base,
+          estoque_atual: item.estoque_atual,
+          estoque_minimo: item.estoque_minimo,
+          // Propriedades para compatibilidade
+          name: item.products.nome,
+          price: Number(item.preco_base),
+          stock: item.estoque_atual,
+          minStock: item.estoque_minimo,
+          size: item.tamanho,
+          color: item.cor,
+          isLowStock: item.estoque_atual <= item.estoque_minimo
+        })) || [];
+
+        console.log('🔍 Produtos processados:', groupedProducts);
+        const sortedProducts = groupedProducts.sort((a, b) => 
+          a.nome.localeCompare(b.nome, 'pt-BR', { sensitivity: 'base' })
+        );
+        setProducts(sortedProducts);
+        return;
       }
+
+      // Sem termo de busca: query simples
+      let query = supabase
+        .from('product_variants')
+        .select(baseSelect);
 
       if (filters?.categoryId) {
         console.log('🔍 Aplicando filtro de categoria:', filters.categoryId);
