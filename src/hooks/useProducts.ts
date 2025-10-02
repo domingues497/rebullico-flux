@@ -276,19 +276,7 @@ export const useProducts = () => {
       const { data, error } = await supabase
         .from('product_variants')
         .select(`
-          id,
-          sku,
-          ean,
-          cod_fabricante,
-          tamanho,
-          cor,
-          preco_custo,
-          margem_lucro,
-          preco_base,
-          preco_manual,
-          estoque_atual,
-          estoque_minimo,
-          product_id,
+          *,
           products!inner (
             id,
             nome,
@@ -360,10 +348,10 @@ export const useProducts = () => {
           cod_fabricante: variant.cod_fabricante || '',
           tamanho: variant.tamanho || '',
           cor: variant.cor || '',
-          preco_custo: Number(variant.preco_custo) || 0,
-          margem_lucro: Number(variant.margem_lucro) || 0,
+          preco_custo: Number((variant as any).preco_custo) || 0,
+          margem_lucro: Number((variant as any).margem_lucro) || 0,
           preco_base: Number(variant.preco_base) || 0,
-          preco_manual: variant.preco_manual !== undefined ? variant.preco_manual : false,
+          preco_manual: (variant as any).preco_manual !== undefined ? (variant as any).preco_manual : false,
           estoque_atual: variant.estoque_atual || 0,
           estoque_minimo: variant.estoque_minimo || 0
         }))

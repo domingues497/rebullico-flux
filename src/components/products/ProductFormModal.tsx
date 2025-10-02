@@ -155,6 +155,7 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
       preco_custo: 0,
       margem_lucro: 0,
       preco_base: 0,
+      preco_manual: false,
       estoque_atual: 0,
       estoque_minimo: 0
     }]);
