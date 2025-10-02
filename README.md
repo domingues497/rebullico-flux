@@ -204,8 +204,8 @@ Preço de Venda = Preço de Custo ÷ (1 – Margem de Lucro)
  * RF4.8: O sistema deve ter uma funcionalidade de busca e filtro de produtos por nome, SKU, categoria ou marca.
  * RF4.9: O sistema deve permitir a importação de produtos em lote via planilha (CSV).
  * RF4.10: O sistema deve permitir a definição de um "estoque mínimo" para cada produto/variação.
- * RF4.11: O sistema deve permitir o mapeamento de categorias de produtos do ERP para as categorias do Mercado Livre.
- * RF4.12: O sistema deve ter uma funcionalidade para "Publicar no Mercado Livre", enviando fotos, título, descrição, preço e variações (cor, tamanho) para o marketplace via API.
+ * RF4.11: O sistema deve ter uma funcionalidade para "Publicar no Mercado Livre", enviando fotos, título, descrição, preço e variações (cor, tamanho) para o marketplace via API.
+ * RF4.12: O sistema deve permitir o mapeamento de categorias de produtos do ERP para as categorias do Mercado Livre.
  * RF4.13: O sistema deve permitir a edição de um anúncio no Mercado Livre diretamente pela tela de cadastro do produto no ERP.
  * RF4.14: O sistema deve permitir definir um preço de venda específico para a Landing Page e outro para o Mercado Livre, diferente do preço da loja física.
 

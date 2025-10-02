@@ -31,6 +31,7 @@ import {
 import { useProducts } from "@/hooks/useProducts";
 import { useBrands } from "@/hooks/useBrands";
 import { ProductFormModal } from "@/components/products/ProductFormModal";
+import { MercadoLivrePublishModal } from "@/components/products/MercadoLivrePublishModal";
 
 const Products = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -39,6 +40,8 @@ const Products = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState<string>();
   const [modalMode, setModalMode] = useState<'create' | 'edit' | 'view'>('create');
+  const [publishOpen, setPublishOpen] = useState(false);
+  const [publishProduct, setPublishProduct] = useState<any | null>(null);
   const { products, groups, loading, fetchProducts } = useProducts();
   const { brands } = useBrands();
 
@@ -84,6 +87,11 @@ const Products = () => {
     setModalMode('edit');
     setModalOpen(true);
     console.log('🎯 Estado após setSelectedProductId:', productId);
+  };
+
+  const handlePublishProduct = (product: any) => {
+    setPublishProduct(product);
+    setPublishOpen(true);
   };
 
   return (
@@ -266,6 +274,12 @@ const Products = () => {
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
+                          <Button 
+                            variant="default"
+                            onClick={() => handlePublishProduct(product)}
+                          >
+                            Publicar ML
+                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -285,6 +299,12 @@ const Products = () => {
             console.log('🎉 Produto salvo com sucesso, recarregando lista');
             fetchProducts();
           }}
+        />
+
+        <MercadoLivrePublishModal
+          open={publishOpen}
+          onOpenChange={setPublishOpen}
+          product={publishProduct}
         />
 
       </div>
