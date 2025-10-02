@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { useAuth } from "@/hooks/useAuth";
+import Home from "./pages/Home";
 import Dashboard from "./pages/Dashboard";
 import POS from "./pages/POS";
 import Products from "./pages/Products";
@@ -27,11 +28,17 @@ function AppRoutes() {
 
   return (
     <Routes>
+      {/* Public route - Landing page */}
+      <Route path="/" element={<Home />} />
+      
+      {/* Login route */}
       <Route 
         path="/login" 
-        element={user ? <Navigate to="/" replace /> : <Login />} 
+        element={user ? <Navigate to="/admin" replace /> : <Login />} 
       />
-      <Route path="/" element={
+      
+      {/* Protected admin routes */}
+      <Route path="/admin" element={
         <ProtectedRoute>
           <Dashboard />
         </ProtectedRoute>

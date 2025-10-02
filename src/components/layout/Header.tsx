@@ -8,8 +8,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Bell, LogOut, User } from "lucide-react";
+import { Bell, LogOut, User, Store } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { Link } from "react-router-dom";
 
 interface HeaderProps {
   title?: string;
@@ -28,6 +29,14 @@ export function Header({ title }: HeaderProps) {
         </div>
 
         <div className="flex items-center space-x-4">
+          {/* Link to Store */}
+          <Link to="/">
+            <Button variant="outline" size="sm" className="gap-2">
+              <Store className="h-4 w-4" />
+              Voltar para Loja
+            </Button>
+          </Link>
+
           {/* Notifications */}
           <Button variant="ghost" size="icon" className="relative">
             <Bell className="h-5 w-5" />
