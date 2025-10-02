@@ -152,7 +152,7 @@ export const useProducts = () => {
       if (filters?.searchTerm) {
         const searchTerm = `%${filters.searchTerm.toLowerCase()}%`;
         console.log('🔍 Aplicando filtro de busca:', searchTerm);
-        query = query.or(`products.nome.ilike."${searchTerm}",sku.ilike."${searchTerm}",ean.ilike."${searchTerm}",cod_fabricante.ilike."${searchTerm}",products.cod_interno.ilike."${searchTerm}"`);
+        query = query.or(`products.nome.ilike.${searchTerm},sku.ilike.${searchTerm},ean.ilike.${searchTerm},cod_fabricante.ilike.${searchTerm},products.cod_interno.ilike.${searchTerm}`);
       }
 
       if (filters?.categoryId) {
