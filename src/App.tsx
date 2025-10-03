@@ -9,8 +9,9 @@ import Products from "./pages/Products";
 import ProductGroups from "./pages/ProductGroups";
 import Customers from "./pages/Customers";
 import Reports from "./pages/Reports";
-import Settings from "./pages/Settings";
-import NotFound from "./pages/NotFound";
+import Settings from './pages/Settings';
+import StockEntries from './pages/StockEntries';
+import NotFound from './pages/NotFound';
 import Login from "./pages/Login";
 
 const queryClient = new QueryClient();
@@ -71,6 +72,11 @@ function AppRoutes() {
       <Route path="/settings" element={
         <ProtectedRoute>
           <Settings />
+        </ProtectedRoute>
+      } />
+      <Route path="/stock-entries" element={
+        <ProtectedRoute>
+          <StockEntries />
         </ProtectedRoute>
       } />
       <Route path="*" element={<NotFound />} />
