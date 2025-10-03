@@ -11,6 +11,7 @@ import Customers from "./pages/Customers";
 import Reports from "./pages/Reports";
 import Settings from './pages/Settings';
 import StockEntries from './pages/StockEntries';
+import Suppliers from './pages/Suppliers';
 import NotFound from './pages/NotFound';
 import Login from "./pages/Login";
 
@@ -77,6 +78,11 @@ function AppRoutes() {
       <Route path="/stock-entries" element={
         <ProtectedRoute>
           <StockEntries />
+        </ProtectedRoute>
+      } />
+      <Route path="/suppliers" element={
+        <ProtectedRoute>
+          <Suppliers />
         </ProtectedRoute>
       } />
       <Route path="*" element={<NotFound />} />

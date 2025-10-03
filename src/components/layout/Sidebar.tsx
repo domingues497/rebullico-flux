@@ -10,7 +10,8 @@ import {
   Menu,
   X,
   Layers,
-  TrendingUp
+  TrendingUp,
+  Building2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -21,6 +22,7 @@ const navigation = [
   { name: "Produtos", href: "/products", icon: Package },
   { name: "Grupos", href: "/product-groups", icon: Layers },
   { name: "Entradas", href: "/stock-entries", icon: TrendingUp },
+  { name: "Fornecedores", href: "/suppliers", icon: Building2 },
   { name: "Clientes", href: "/customers", icon: Users },
   { name: "Relatórios", href: "/reports", icon: BarChart3 },
   { name: "Configurações", href: "/settings", icon: Settings },
