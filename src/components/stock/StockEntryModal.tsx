@@ -36,7 +36,7 @@ export function StockEntryModal({ open, onOpenChange, onSave }: Props) {
   const [loading, setLoading] = useState(false);
 
   const addItem = () => {
-    setItems([...items, { product_variant_id: '', quantidade: 1, custo_unit: 0 }]);
+    setItems([...items, { product_variant_id: undefined as any, quantidade: 1, custo_unit: 0 }]);
   };
 
   const removeItem = (index: number) => {
@@ -213,7 +213,7 @@ export function StockEntryModal({ open, onOpenChange, onSave }: Props) {
                     <div className="col-span-5">
                       <Label className="text-xs">Produto</Label>
                       <Select
-                        value={item.product_variant_id}
+                        value={item.product_variant_id || undefined}
                         onValueChange={(val) => updateItem(index, 'product_variant_id', val)}
                       >
                         <SelectTrigger>
