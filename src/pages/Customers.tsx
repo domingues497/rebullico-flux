@@ -70,7 +70,7 @@ function CustomerFormDialog({
   const [aniversario, setAniversario] = useState(
     initial?.aniversario ? initial.aniversario.slice(0, 10) : ""
   );
-  const [grupoId, setGrupoId] = useState<string>(initial?.grupo_pessoas_id ?? "");
+  const [grupoId, setGrupoId] = useState<string>(initial?.grupo_pessoas_id ?? "none");
   // endereço simples -> salvamos como JSON
   const [cep, setCep] = useState(initial?.endereco?.cep ?? "");
   const [rua, setRua] = useState(initial?.endereco?.rua ?? "");
@@ -87,7 +87,7 @@ function CustomerFormDialog({
     setWhatsapp(initial?.whatsapp ?? "");
     setCpf(initial?.cpf ?? "");
     setAniversario(initial?.aniversario ? initial.aniversario.slice(0, 10) : "");
-    setGrupoId(initial?.grupo_pessoas_id ?? "");
+    setGrupoId(initial?.grupo_pessoas_id ?? "none");
     setCep(initial?.endereco?.cep ?? "");
     setRua(initial?.endereco?.rua ?? "");
     setNumero(initial?.endereco?.numero ?? "");
@@ -117,7 +117,7 @@ function CustomerFormDialog({
       whatsapp: whatsapp || null,
       cpf: cpf || null,
       aniversario: aniversario ? new Date(aniversario).toISOString() : null,
-      grupo_pessoas_id: grupoId || null,
+      grupo_pessoas_id: grupoId === "none" ? null : grupoId,
       endereco: enderecoJson,
     };
 
@@ -174,7 +174,7 @@ function CustomerFormDialog({
             <Select value={grupoId} onValueChange={setGrupoId}>
               <SelectTrigger><SelectValue placeholder="(sem grupo)" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="">(sem grupo)</SelectItem>
+                <SelectItem value="none">(sem grupo)</SelectItem>
                 {groups.map((g) => (
                   <SelectItem key={g.id} value={g.id}>
                     {g.nome} ({Number(g.desconto_percentual)}%)
