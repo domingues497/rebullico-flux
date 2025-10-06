@@ -113,6 +113,11 @@ function CustomerFormDialog({
     return numbers.replace(/(\d{3})(\d{3})(\d{3})(\d{0,2})/, "$1.$2.$3-$4");
   };
 
+  const formatCEP = (value: string) => {
+    const numbers = value.replace(/\D/g, "");
+    return numbers.replace(/(\d{5})(\d{0,3})/, "$1-$2");
+  };
+
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const numbers = e.target.value.replace(/\D/g, "").slice(0, 11);
     setTelefone(numbers);
@@ -121,6 +126,35 @@ function CustomerFormDialog({
   const handleCPFChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const numbers = e.target.value.replace(/\D/g, "").slice(0, 11);
     setCpf(numbers);
+  };
+
+  const handleCEPChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const numbers = e.target.value.replace(/\D/g, "").slice(0, 8);
+    setCep(numbers);
+
+    // Busca o endereço quando o CEP tiver 8 dígitos
+    if (numbers.length === 8) {
+      try {
+        const response = await fetch(`https://viacep.com.br/ws/${numbers}/json/`);
+        const data = await response.json();
+        
+        if (!data.erro) {
+          setRua(data.logradouro || "");
+          setBairro(data.bairro || "");
+          setCidade(data.localidade || "");
+          setUf(data.uf || "");
+        } else {
+          // CEP não encontrado - limpa os campos
+          setRua("");
+          setBairro("");
+          setCidade("");
+          setUf("");
+        }
+      } catch (error) {
+        console.error("Erro ao buscar CEP:", error);
+        // Em caso de erro, não faz nada (mantém os campos como estão)
+      }
+    }
   };
 
   const enderecoJson = {
@@ -232,7 +266,11 @@ function CustomerFormDialog({
           {/* Endereço */}
           <div className="col-span-12 md:col-span-3">
             <Label>CEP</Label>
-            <Input value={cep} onChange={(e) => setCep(e.target.value)} />
+            <Input 
+              value={formatCEP(cep)} 
+              onChange={handleCEPChange} 
+              placeholder="00000-000"
+            />
           </div>
           <div className="col-span-12 md:col-span-6">
             <Label>Rua</Label>
