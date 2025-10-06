@@ -8,6 +8,11 @@ export interface Supplier {
   cnpj_cpf?: string;
   contato?: any; // Json type from database
   created_at: string;
+  nome_vendedor?: string;
+  telefone_vendedor?: string;
+  email_vendedor?: string;
+  formas_pagamento?: string[];
+  limite_credito?: number;
 }
 
 export const useSuppliers = () => {
@@ -38,7 +43,16 @@ export const useSuppliers = () => {
     }
   };
 
-  const createSupplier = async (supplierData: { nome: string; cnpj_cpf?: string; contato?: any }) => {
+  const createSupplier = async (supplierData: { 
+    nome: string; 
+    cnpj_cpf?: string; 
+    contato?: any;
+    nome_vendedor?: string;
+    telefone_vendedor?: string;
+    email_vendedor?: string;
+    formas_pagamento?: string[];
+    limite_credito?: number;
+  }) => {
     try {
       const { data, error } = await supabase
         .from('suppliers')
@@ -66,7 +80,16 @@ export const useSuppliers = () => {
     }
   };
 
-  const updateSupplier = async (id: string, supplierData: { nome?: string; cnpj_cpf?: string; contato?: any }) => {
+  const updateSupplier = async (id: string, supplierData: { 
+    nome?: string; 
+    cnpj_cpf?: string; 
+    contato?: any;
+    nome_vendedor?: string;
+    telefone_vendedor?: string;
+    email_vendedor?: string;
+    formas_pagamento?: string[];
+    limite_credito?: number;
+  }) => {
     try {
       const { data, error } = await supabase
         .from('suppliers')

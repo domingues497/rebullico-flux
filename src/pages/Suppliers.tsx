@@ -34,6 +34,11 @@ interface SupplierData {
     email?: string;
     endereco?: string;
   };
+  nome_vendedor?: string;
+  telefone_vendedor?: string;
+  email_vendedor?: string;
+  formas_pagamento?: string[];
+  limite_credito?: number;
 }
 
 export default function Suppliers() {

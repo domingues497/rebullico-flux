@@ -71,6 +71,33 @@ export type Database = {
         }
         Relationships: []
       }
+      brands: {
+        Row: {
+          ativo: boolean | null
+          created_at: string
+          descricao: string | null
+          id: string
+          nome: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean | null
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          nome: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean | null
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          nome?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       customer_groups: {
         Row: {
           created_at: string
@@ -188,6 +215,13 @@ export type Database = {
             referencedRelation: "suppliers"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "payables_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "v_products_complete"
+            referencedColumns: ["supplier_id"]
+          },
         ]
       }
       payment_methods: {
@@ -258,63 +292,36 @@ export type Database = {
           },
         ]
       }
-      brands: {
-        Row: {
-          ativo: boolean
-          created_at: string
-          descricao: string | null
-          id: string
-          nome: string
-          updated_at: string
-        }
-        Insert: {
-          ativo?: boolean
-          created_at?: string
-          descricao?: string | null
-          id?: string
-          nome: string
-          updated_at?: string
-        }
-        Update: {
-          ativo?: boolean
-          created_at?: string
-          descricao?: string | null
-          id?: string
-          nome?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
       product_groups: {
         Row: {
-          ativo: boolean
+          ativo: boolean | null
           created_at: string
           estoque_minimo_default: number | null
           id: string
-          nivel: number
+          nivel: number | null
           nome: string
           parent_id: string | null
-          updated_at: string
+          updated_at: string | null
         }
         Insert: {
-          ativo?: boolean
+          ativo?: boolean | null
           created_at?: string
           estoque_minimo_default?: number | null
           id?: string
-          nivel?: number
+          nivel?: number | null
           nome: string
           parent_id?: string | null
-          updated_at?: string
+          updated_at?: string | null
         }
         Update: {
-          ativo?: boolean
+          ativo?: boolean | null
           created_at?: string
           estoque_minimo_default?: number | null
           id?: string
-          nivel?: number
+          nivel?: number | null
           nome?: string
           parent_id?: string | null
-          updated_at?: string
+          updated_at?: string | null
         }
         Relationships: [
           {
@@ -323,6 +330,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "product_groups"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_groups_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "v_products_complete"
+            referencedColumns: ["category_id"]
           },
         ]
       }
@@ -359,6 +373,13 @@ export type Database = {
             referencedRelation: "products"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "product_images_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_products_complete"
+            referencedColumns: ["id"]
+          },
         ]
       }
       product_variants: {
@@ -370,7 +391,12 @@ export type Database = {
           estoque_atual: number
           estoque_minimo: number | null
           id: string
+          margem_lucro: number | null
           preco_base: number
+          preco_custo: number | null
+          preco_landing: number | null
+          preco_manual: boolean | null
+          preco_mercado_livre: number | null
           product_id: string
           sku: string
           tamanho: string | null
@@ -383,7 +409,12 @@ export type Database = {
           estoque_atual?: number
           estoque_minimo?: number | null
           id?: string
+          margem_lucro?: number | null
           preco_base?: number
+          preco_custo?: number | null
+          preco_landing?: number | null
+          preco_manual?: boolean | null
+          preco_mercado_livre?: number | null
           product_id: string
           sku: string
           tamanho?: string | null
@@ -396,7 +427,12 @@ export type Database = {
           estoque_atual?: number
           estoque_minimo?: number | null
           id?: string
+          margem_lucro?: number | null
           preco_base?: number
+          preco_custo?: number | null
+          preco_landing?: number | null
+          preco_manual?: boolean | null
+          preco_mercado_livre?: number | null
           product_id?: string
           sku?: string
           tamanho?: string | null
@@ -407,6 +443,13 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_variants_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "v_products_complete"
             referencedColumns: ["id"]
           },
         ]
@@ -420,9 +463,10 @@ export type Database = {
           ean_default: string | null
           grupo_id: string | null
           id: string
+          ml_item_id: string | null
           nome: string
           supplier_id: string | null
-          updated_at: string
+          updated_at: string | null
         }
         Insert: {
           brand_id?: string | null
@@ -432,9 +476,10 @@ export type Database = {
           ean_default?: string | null
           grupo_id?: string | null
           id?: string
+          ml_item_id?: string | null
           nome: string
           supplier_id?: string | null
-          updated_at?: string
+          updated_at?: string | null
         }
         Update: {
           brand_id?: string | null
@@ -444,9 +489,10 @@ export type Database = {
           ean_default?: string | null
           grupo_id?: string | null
           id?: string
+          ml_item_id?: string | null
           nome?: string
           supplier_id?: string | null
-          updated_at?: string
+          updated_at?: string | null
         }
         Relationships: [
           {
@@ -457,6 +503,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "products_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "v_products_complete"
+            referencedColumns: ["brand_id"]
+          },
+          {
             foreignKeyName: "products_grupo_id_fkey"
             columns: ["grupo_id"]
             isOneToOne: false
@@ -464,11 +517,25 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "products_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "v_products_complete"
+            referencedColumns: ["category_id"]
+          },
+          {
             foreignKeyName: "products_supplier_id_fkey"
             columns: ["supplier_id"]
             isOneToOne: false
             referencedRelation: "suppliers"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "products_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "v_products_complete"
+            referencedColumns: ["supplier_id"]
           },
         ]
       }
@@ -761,6 +828,13 @@ export type Database = {
             referencedRelation: "suppliers"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "stock_entries_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "v_products_complete"
+            referencedColumns: ["supplier_id"]
+          },
         ]
       }
       stock_entry_items: {
@@ -859,22 +933,37 @@ export type Database = {
           cnpj_cpf: string | null
           contato: Json | null
           created_at: string
+          email_vendedor: string | null
+          formas_pagamento: string[] | null
           id: string
+          limite_credito: number | null
           nome: string
+          nome_vendedor: string | null
+          telefone_vendedor: string | null
         }
         Insert: {
           cnpj_cpf?: string | null
           contato?: Json | null
           created_at?: string
+          email_vendedor?: string | null
+          formas_pagamento?: string[] | null
           id?: string
+          limite_credito?: number | null
           nome: string
+          nome_vendedor?: string | null
+          telefone_vendedor?: string | null
         }
         Update: {
           cnpj_cpf?: string | null
           contato?: Json | null
           created_at?: string
+          email_vendedor?: string | null
+          formas_pagamento?: string[] | null
           id?: string
+          limite_credito?: number | null
           nome?: string
+          nome_vendedor?: string | null
+          telefone_vendedor?: string | null
         }
         Relationships: []
       }
@@ -913,7 +1002,22 @@ export type Database = {
           supplier_name: string | null
           updated_at: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "product_groups_parent_id_fkey"
+            columns: ["category_parent_id"]
+            isOneToOne: false
+            referencedRelation: "product_groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_groups_parent_id_fkey"
+            columns: ["category_parent_id"]
+            isOneToOne: false
+            referencedRelation: "v_products_complete"
+            referencedColumns: ["category_id"]
+          },
+        ]
       }
       v_stock_balance: {
         Row: {
