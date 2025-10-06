@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -36,6 +37,7 @@ type Customer = {
   aniversario: string | null; // ISO date
   endereco: any | null;       // JSON
   grupo_pessoas_id: string | null;
+  aceita_mensagens: boolean | null;
   created_at: string;
   customer_groups?: { nome: string; desconto_percentual: number } | null;
 };
@@ -65,7 +67,7 @@ function CustomerFormDialog({
 
   const [nome, setNome] = useState(initial?.nome ?? "");
   const [telefone, setTelefone] = useState(initial?.telefone ?? "");
-  const [whatsapp, setWhatsapp] = useState(initial?.whatsapp ?? "");
+  const [aceitaMensagens, setAceitaMensagens] = useState(initial?.aceita_mensagens ?? true);
   const [cpf, setCpf] = useState(initial?.cpf ?? "");
   const [aniversario, setAniversario] = useState(
     initial?.aniversario ? initial.aniversario.slice(0, 10) : ""
@@ -84,7 +86,7 @@ function CustomerFormDialog({
     if (!open) return;
     setNome(initial?.nome ?? "");
     setTelefone(initial?.telefone ?? "");
-    setWhatsapp(initial?.whatsapp ?? "");
+    setAceitaMensagens(initial?.aceita_mensagens ?? true);
     setCpf(initial?.cpf ?? "");
     setAniversario(initial?.aniversario ? initial.aniversario.slice(0, 10) : "");
     setGrupoId(initial?.grupo_pessoas_id ?? "none");
@@ -96,6 +98,30 @@ function CustomerFormDialog({
     setUf(initial?.endereco?.uf ?? "");
     setComplemento(initial?.endereco?.complemento ?? "");
   }, [open, initial]);
+
+  // Máscaras
+  const formatPhone = (value: string) => {
+    const numbers = value.replace(/\D/g, "");
+    if (numbers.length <= 10) {
+      return numbers.replace(/(\d{2})(\d{4})(\d{0,4})/, "($1) $2-$3");
+    }
+    return numbers.replace(/(\d{2})(\d{5})(\d{0,4})/, "($1) $2-$3");
+  };
+
+  const formatCPF = (value: string) => {
+    const numbers = value.replace(/\D/g, "");
+    return numbers.replace(/(\d{3})(\d{3})(\d{3})(\d{0,2})/, "$1.$2.$3-$4");
+  };
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const numbers = e.target.value.replace(/\D/g, "").slice(0, 11);
+    setTelefone(numbers);
+  };
+
+  const handleCPFChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const numbers = e.target.value.replace(/\D/g, "").slice(0, 11);
+    setCpf(numbers);
+  };
 
   const enderecoJson = {
     cep: cep || null,
@@ -114,7 +140,8 @@ function CustomerFormDialog({
     const payload = {
       nome: nome.trim(),
       telefone: telefone || null,
-      whatsapp: whatsapp || null,
+      whatsapp: telefone || null, // usar o mesmo telefone para WhatsApp
+      aceita_mensagens: aceitaMensagens,
       cpf: cpf || null,
       aniversario: aniversario ? new Date(aniversario).toISOString() : null,
       grupo_pessoas_id: grupoId === "none" ? null : grupoId,
@@ -152,17 +179,35 @@ function CustomerFormDialog({
             <Input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex.: Maria Silva" />
           </div>
 
-          <div className="col-span-12 md:col-span-4">
-            <Label>Telefone</Label>
-            <Input value={telefone ?? ""} onChange={(e) => setTelefone(e.target.value)} placeholder="(11) 99999-0000" />
-          </div>
-          <div className="col-span-12 md:col-span-4">
-            <Label>WhatsApp</Label>
-            <Input value={whatsapp ?? ""} onChange={(e) => setWhatsapp(e.target.value)} placeholder="(11) 99999-0000" />
+          <div className="col-span-12 md:col-span-5">
+            <Label>Telefone/WhatsApp</Label>
+            <Input 
+              value={formatPhone(telefone)} 
+              onChange={handlePhoneChange} 
+              placeholder="(11) 99999-0000" 
+            />
           </div>
           <div className="col-span-12 md:col-span-4">
             <Label>CPF</Label>
-            <Input value={cpf ?? ""} onChange={(e) => setCpf(e.target.value)} placeholder="000.000.000-00" />
+            <Input 
+              value={formatCPF(cpf)} 
+              onChange={handleCPFChange} 
+              placeholder="000.000.000-00" 
+            />
+          </div>
+          <div className="col-span-12 md:col-span-3 flex items-end">
+            <div className="flex items-center space-x-2 pb-2">
+              <input
+                type="checkbox"
+                id="aceita-mensagens"
+                checked={aceitaMensagens}
+                onChange={(e) => setAceitaMensagens(e.target.checked)}
+                className="h-4 w-4 rounded border-input"
+              />
+              <Label htmlFor="aceita-mensagens" className="cursor-pointer text-sm">
+                Aceita ofertas no WhatsApp
+              </Label>
+            </div>
           </div>
 
           <div className="col-span-12 md:col-span-4">
