@@ -110,6 +110,7 @@ export function useStockEntries() {
         const { error: stockError } = await supabase.rpc('update_stock_on_entry', {
           p_variant_id: item.product_variant_id,
           p_quantity: item.quantidade,
+          p_custo_unit: item.custo_unit,
         });
 
         if (stockError) {

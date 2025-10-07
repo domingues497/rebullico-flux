@@ -1052,7 +1052,9 @@ export type Database = {
         Returns: string
       }
       update_stock_on_entry: {
-        Args: { p_quantity: number; p_variant_id: string }
+        Args:
+          | { p_custo_unit: number; p_quantity: number; p_variant_id: string }
+          | { p_quantity: number; p_variant_id: string }
         Returns: undefined
       }
       update_stock_on_sale: {
