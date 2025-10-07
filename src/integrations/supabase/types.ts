@@ -400,6 +400,7 @@ export type Database = {
           product_id: string
           sku: string
           tamanho: string | null
+          updated_at: string
         }
         Insert: {
           cod_fabricante?: string | null
@@ -418,6 +419,7 @@ export type Database = {
           product_id: string
           sku: string
           tamanho?: string | null
+          updated_at?: string
         }
         Update: {
           cod_fabricante?: string | null
@@ -436,6 +438,7 @@ export type Database = {
           product_id?: string
           sku?: string
           tamanho?: string | null
+          updated_at?: string
         }
         Relationships: [
           {
