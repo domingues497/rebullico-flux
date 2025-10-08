@@ -29,10 +29,23 @@ import {
   Monitor
 } from "lucide-react";
 import { useSettings } from "@/hooks/useSettings";
+import { usePaymentMethods } from "@/hooks/usePaymentMethods";
+import { useAcquirerFees } from "@/hooks/useAcquirerFees";
 import { useToast } from "@/hooks/use-toast";
 import type { Settings } from "@/types/settings";
+import PaymentMethodFormModal from "@/components/settings/PaymentMethodFormModal";
+import AcquirerFeeFormModal from "@/components/settings/AcquirerFeeFormModal";
+import { Pencil } from "lucide-react";
 
 const Settings = () => {
+  const { paymentMethods, createPaymentMethod, updatePaymentMethod, deletePaymentMethod } = usePaymentMethods();
+  const { acquirerFees, createAcquirerFee, updateAcquirerFee, deleteAcquirerFee } = useAcquirerFees();
+  
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [feeModalOpen, setFeeModalOpen] = useState(false);
+  const [editPaymentData, setEditPaymentData] = useState<any>(null);
+  const [editFeeData, setEditFeeData] = useState<any>(null);
+
   // Store Information
   const [storeName, setStoreName] = useState("");
   const [storeCnpj, setStoreCnpj] = useState("");
@@ -143,21 +156,6 @@ const Settings = () => {
     }
   };
 
-  // Mock payment methods data
-  const paymentMethods = [
-    { id: "1", name: "Dinheiro", feePercent: 0, allowInstallments: false, active: true },
-    { id: "2", name: "Cartão de Crédito", feePercent: 3.5, allowInstallments: true, active: true },
-    { id: "3", name: "Cartão de Débito", feePercent: 2.0, allowInstallments: false, active: true },
-    { id: "4", name: "PIX", feePercent: 0, allowInstallments: false, active: true },
-    { id: "5", name: "Fiado", feePercent: 0, allowInstallments: false, active: true },
-  ];
-
-  // Mock customer groups data
-  const customerGroups = [
-    { id: "1", name: "VIP", discountPercent: 15, active: true },
-    { id: "2", name: "Regular", discountPercent: 5, active: true },
-    { id: "3", name: "Funcionários", discountPercent: 20, active: true },
-  ];
 
   return (
     <Layout title="Configurações do Sistema">
@@ -440,7 +438,7 @@ const Settings = () => {
                 <CreditCard className="mr-2 h-5 w-5" />
                 Formas de Pagamento
               </div>
-              <Button className="btn-pos-primary">
+              <Button className="btn-pos-primary" onClick={() => { setEditPaymentData(null); setPaymentModalOpen(true); }}>
                 <Plus className="mr-2 h-4 w-4" />
                 Nova Forma
               </Button>
@@ -450,34 +448,40 @@ const Settings = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Forma de Pagamento</TableHead>
-                  <TableHead>Taxa (%)</TableHead>
-                  <TableHead>Parcelamento</TableHead>
+                  <TableHead>Nome</TableHead>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead>Bandeira</TableHead>
+                  <TableHead>Parcelas</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {paymentMethods.map((method) => (
-                  <TableRow key={method.id}>
-                    <TableCell className="font-medium">{method.name}</TableCell>
-                    <TableCell>{method.feePercent}%</TableCell>
+                {paymentMethods?.map((pm) => (
+                  <TableRow key={pm.id}>
+                    <TableCell className="font-medium">{pm.nome}</TableCell>
+                    <TableCell>{pm.tipo}</TableCell>
                     <TableCell>
-                      <Badge variant={method.allowInstallments ? "default" : "secondary"}>
-                        {method.allowInstallments ? "Sim" : "Não"}
+                      <Badge variant={pm.exige_bandeira ? "default" : "secondary"}>
+                        {pm.exige_bandeira ? "Sim" : "Não"}
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={method.active ? "default" : "secondary"}>
-                        {method.active ? "Ativo" : "Inativo"}
+                      <Badge variant={pm.permite_parcelas ? "default" : "secondary"}>
+                        {pm.permite_parcelas ? "Sim" : "Não"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={pm.ativo ? "default" : "secondary"}>
+                        {pm.ativo ? "Ativo" : "Inativo"}
                       </Badge>
                     </TableCell>
                     <TableCell>
                       <div className="flex space-x-2">
-                        <Button variant="outline" size="icon">
+                        <Button variant="outline" size="icon" onClick={() => { setEditPaymentData(pm); setPaymentModalOpen(true); }}>
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button variant="outline" size="icon">
+                        <Button variant="outline" size="icon" onClick={() => deletePaymentMethod(pm.id)}>
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
@@ -489,17 +493,17 @@ const Settings = () => {
           </CardContent>
         </Card>
 
-        {/* Customer Groups */}
+        {/* Acquirer Fees */}
         <Card className="card-elevated">
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
               <div className="flex items-center">
-                <Users className="mr-2 h-5 w-5" />
-                Grupos de Clientes
+                <CreditCard className="mr-2 h-5 w-5" />
+                Taxas de Bandeiras
               </div>
-              <Button className="btn-pos-primary">
+              <Button className="btn-pos-primary" onClick={() => { setEditFeeData(null); setFeeModalOpen(true); }}>
                 <Plus className="mr-2 h-4 w-4" />
-                Novo Grupo
+                Nova Taxa
               </Button>
             </CardTitle>
           </CardHeader>
@@ -507,33 +511,26 @@ const Settings = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Nome do Grupo</TableHead>
-                  <TableHead>Desconto (%)</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>Bandeira</TableHead>
+                  <TableHead>Parcelas</TableHead>
+                  <TableHead>Taxa Fixa (R$)</TableHead>
+                  <TableHead>Taxa %</TableHead>
                   <TableHead>Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {customerGroups.map((group) => (
-                  <TableRow key={group.id}>
-                    <TableCell className="font-medium">{group.name}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center space-x-2">
-                        <span>{group.discountPercent}%</span>
-                        <Badge variant="outline">Automático</Badge>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={group.active ? "default" : "secondary"}>
-                        {group.active ? "Ativo" : "Inativo"}
-                      </Badge>
-                    </TableCell>
+                {acquirerFees?.map((fee) => (
+                  <TableRow key={fee.id}>
+                    <TableCell className="font-medium">{fee.bandeira}</TableCell>
+                    <TableCell>{fee.parcelas}x</TableCell>
+                    <TableCell>R$ {Number(fee.taxa_fixa || 0).toFixed(2)}</TableCell>
+                    <TableCell>{Number(fee.taxa_percentual || 0).toFixed(2)}%</TableCell>
                     <TableCell>
                       <div className="flex space-x-2">
-                        <Button variant="outline" size="icon">
+                        <Button variant="outline" size="icon" onClick={() => { setEditFeeData(fee); setFeeModalOpen(true); }}>
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button variant="outline" size="icon">
+                        <Button variant="outline" size="icon" onClick={() => deleteAcquirerFee(fee.id)}>
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
@@ -593,6 +590,20 @@ const Settings = () => {
           </CardContent>
         </Card>
       </div>
+
+      <PaymentMethodFormModal
+        isOpen={paymentModalOpen}
+        onClose={() => setPaymentModalOpen(false)}
+        onSave={editPaymentData ? updatePaymentMethod : createPaymentMethod}
+        editData={editPaymentData}
+      />
+
+      <AcquirerFeeFormModal
+        isOpen={feeModalOpen}
+        onClose={() => setFeeModalOpen(false)}
+        onSave={editFeeData ? updateAcquirerFee : createAcquirerFee}
+        editData={editFeeData}
+      />
     </Layout>
   );
 };
