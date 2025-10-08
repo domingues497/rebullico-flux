@@ -48,6 +48,11 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "Campos obrigatórios: title, category_id, price" }), { status: 400 });
     }
 
+    // Validar campos obrigatórios adicionais
+    if (body.price <= 0) {
+      return new Response(JSON.stringify({ error: "Preço deve ser maior que zero" }), { status: 400 });
+    }
+
     const payload: Record<string, any> = {
       title: body.title,
       category_id: body.category_id,

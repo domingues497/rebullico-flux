@@ -77,7 +77,23 @@ export function MercadoLivrePublishModal({ open, onOpenChange, product }: Props)
 
       if (error) throw error;
 
-      toast({ title: 'Publicado com sucesso', description: `Item criado: ${data?.item?.id || ''}` });
+      // Salvar ml_item_id no produto se disponível
+      if (data?.item?.id && product?.id) {
+        const { error: updateError } = await supabase
+          .from('products')
+          .update({ ml_item_id: data.item.id })
+          .eq('id', product.id);
+        
+        if (updateError) {
+          console.warn('Erro ao salvar ml_item_id:', updateError);
+        }
+      }
+
+      toast({ 
+        title: 'Publicado com sucesso', 
+        description: `Item criado no ML: ${data?.item?.id || ''}. Link: ${data?.item?.permalink || ''}`,
+        duration: 8000
+      });
       onOpenChange(false);
     } catch (e: any) {
       console.error(e);
@@ -122,8 +138,16 @@ export function MercadoLivrePublishModal({ open, onOpenChange, product }: Props)
           </div>
 
           <div>
-            <Label>URLs das fotos (uma por linha)</Label>
-            <textarea className="w-full border rounded p-2 h-24" value={picturesText} onChange={e => setPicturesText(e.target.value)} />
+            <Label>URLs das fotos (uma por linha, máx 6-12)</Label>
+            <textarea 
+              className="w-full border rounded p-2 h-24" 
+              value={picturesText} 
+              onChange={e => setPicturesText(e.target.value)}
+              placeholder="https://exemplo.com/foto1.jpg&#10;https://exemplo.com/foto2.jpg"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Use URLs públicas e acessíveis. O Mercado Livre baixará as imagens.
+            </p>
           </div>
 
           <div className="flex justify-end gap-2">
