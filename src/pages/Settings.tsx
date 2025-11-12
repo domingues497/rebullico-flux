@@ -445,22 +445,27 @@ const Settings = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
+            <p className="text-sm text-muted-foreground mb-4">
+              Cadastre as formas de pagamento aceitas na loja (Dinheiro, PIX, Débito, Crédito, etc.). Para cartões, configure as taxas por bandeira e parcelas na seção abaixo.
+            </p>
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Nome</TableHead>
                   <TableHead>Tipo</TableHead>
-                  <TableHead>Bandeira</TableHead>
-                  <TableHead>Parcelas</TableHead>
+                  <TableHead>Exige Bandeira</TableHead>
+                  <TableHead>Permite Parcelas</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Ações</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {paymentMethods?.map((pm) => (
                   <TableRow key={pm.id}>
                     <TableCell className="font-medium">{pm.nome}</TableCell>
-                    <TableCell>{pm.tipo}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{pm.tipo}</Badge>
+                    </TableCell>
                     <TableCell>
                       <Badge variant={pm.exige_bandeira ? "default" : "secondary"}>
                         {pm.exige_bandeira ? "Sim" : "Não"}
@@ -476,12 +481,12 @@ const Settings = () => {
                         {pm.ativo ? "Ativo" : "Inativo"}
                       </Badge>
                     </TableCell>
-                    <TableCell>
-                      <div className="flex space-x-2">
-                        <Button variant="outline" size="icon" onClick={() => { setEditPaymentData(pm); setPaymentModalOpen(true); }}>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button variant="ghost" size="sm" onClick={() => { setEditPaymentData(pm); setPaymentModalOpen(true); }}>
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button variant="outline" size="icon" onClick={() => deletePaymentMethod(pm.id)}>
+                        <Button variant="ghost" size="sm" onClick={() => deletePaymentMethod(pm.id)} className="text-destructive hover:text-destructive">
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
@@ -498,8 +503,8 @@ const Settings = () => {
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
               <div className="flex items-center">
-                <CreditCard className="mr-2 h-5 w-5" />
-                Taxas de Bandeiras
+                <DollarSign className="mr-2 h-5 w-5" />
+                Taxas por Bandeira e Parcelas
               </div>
               <Button className="btn-pos-primary" onClick={() => { setEditFeeData(null); setFeeModalOpen(true); }}>
                 <Plus className="mr-2 h-4 w-4" />
@@ -508,6 +513,9 @@ const Settings = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
+            <p className="text-sm text-muted-foreground mb-4">
+              Configure as taxas cobradas por bandeira e parcelas. Taxas: fixo (R$) + percentual (%) sobre a transação.
+            </p>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -525,12 +533,12 @@ const Settings = () => {
                     <TableCell>{fee.parcelas}x</TableCell>
                     <TableCell>R$ {Number(fee.taxa_fixa || 0).toFixed(2)}</TableCell>
                     <TableCell>{Number(fee.taxa_percentual || 0).toFixed(2)}%</TableCell>
-                    <TableCell>
-                      <div className="flex space-x-2">
-                        <Button variant="outline" size="icon" onClick={() => { setEditFeeData(fee); setFeeModalOpen(true); }}>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button variant="ghost" size="sm" onClick={() => { setEditFeeData(fee); setFeeModalOpen(true); }}>
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button variant="outline" size="icon" onClick={() => deleteAcquirerFee(fee.id)}>
+                        <Button variant="ghost" size="sm" onClick={() => deleteAcquirerFee(fee.id)} className="text-destructive hover:text-destructive">
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
