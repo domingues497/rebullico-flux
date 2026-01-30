@@ -4,7 +4,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Scan, Camera, X, AlertTriangle, Wifi } from "lucide-react";
-import Quagga from 'quagga';
 
 interface BarcodeScannerProps {
   onCodeScanned: (code: string) => void;
@@ -102,131 +101,15 @@ export function BarcodeScanner({ onCodeScanned, isOpen, onClose }: BarcodeScanne
           return;
         }
       } else {
-         // Fallback: Try to detect simple patterns in the image data
-         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-         const detectedCode = await detectBarcodePattern(imageData);
-         
-         if (detectedCode) {
-           console.log('Código detectado (fallback):', detectedCode);
-           setScanningActive(false);
-           stopCamera(); // Para a câmera imediatamente
-           onCodeScanned(detectedCode);
-           onClose();
-           return;
-         }
-       }
+        setError("Seu navegador não suporta a detecção de código de barras nativa (Google Reader). Use Chrome ou Edge.");
+        setScanningActive(false);
+      }
     } catch (error) {
       console.warn('Erro na detecção de código de barras:', error);
     }
   }, [scanningActive, onCodeScanned, onClose]);
 
-  // Simple barcode pattern detection (fallback)
-  const detectBarcodePattern = async (imageData: ImageData): Promise<string | null> => {
-    return new Promise((resolve) => {
-      // Try QuaggaJS as fallback
-      try {
-        const canvas = canvasRef.current;
-        if (!canvas) {
-          resolve(null);
-          return;
-        }
 
-        // Configure QuaggaJS
-        Quagga.init({
-          inputStream: {
-            name: "Live",
-            type: "ImageStream",
-            target: canvas,
-            constraints: {
-              width: canvas.width,
-              height: canvas.height,
-            }
-          },
-          decoder: {
-            readers: [
-              "code_128_reader",
-              "ean_reader",
-              "ean_8_reader",
-              "code_39_reader"
-            ]
-          },
-          locate: true,
-          locator: {
-            patchSize: "medium",
-            halfSample: true
-          }
-        }, (err) => {
-          if (err) {
-            console.warn('QuaggaJS initialization failed:', err);
-            // Fallback to basic pattern detection
-            const basicResult = detectBasicBarcodePattern(imageData);
-            resolve(basicResult);
-            return;
-          }
-
-          // Process single frame
-          Quagga.onDetected((result) => {
-            const code = result.codeResult.code;
-            console.log('QuaggaJS detected:', code);
-            Quagga.stop();
-            resolve(code);
-          });
-
-          // Start processing
-          Quagga.start();
-          
-          // Stop after 1 second if nothing found
-          setTimeout(() => {
-            Quagga.stop();
-            resolve(null);
-          }, 1000);
-        });
-      } catch (error) {
-        console.warn('QuaggaJS error:', error);
-        // Fallback to basic pattern detection
-        const basicResult = detectBasicBarcodePattern(imageData);
-        resolve(basicResult);
-      }
-    });
-  };
-
-  // Basic pattern detection as final fallback
-  const detectBasicBarcodePattern = (imageData: ImageData): string | null => {
-    // This is a very basic implementation
-    // In a real app, you'd use a proper barcode detection library
-    const { data, width, height } = imageData;
-    
-    // Look for high contrast patterns that might indicate a barcode
-    let barcodeFound = false;
-    const threshold = 128;
-    
-    // Scan horizontal lines for barcode patterns
-    for (let y = Math.floor(height * 0.4); y < Math.floor(height * 0.6); y += 5) {
-      let transitions = 0;
-      let lastPixelDark = false;
-      
-      for (let x = 0; x < width; x += 2) {
-        const pixelIndex = (y * width + x) * 4;
-        const brightness = (data[pixelIndex] + data[pixelIndex + 1] + data[pixelIndex + 2]) / 3;
-        const isDark = brightness < threshold;
-        
-        if (isDark !== lastPixelDark) {
-          transitions++;
-          lastPixelDark = isDark;
-        }
-      }
-      
-      // If we find many transitions, it might be a barcode
-      if (transitions > 20) {
-        barcodeFound = true;
-        break;
-      }
-    }
-    
-    // Return a placeholder code if pattern detected
-    // In a real implementation, you'd decode the actual barcode
-    return barcodeFound ? `DETECTED_${Date.now()}` : null;
-  };
 
   const getErrorMessage = (error: DOMException | Error): string => {
     if (error.name === 'NotAllowedError') {

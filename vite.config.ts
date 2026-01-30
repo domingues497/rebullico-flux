@@ -8,7 +8,7 @@ import { VitePWA } from 'vite-plugin-pwa';
 export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
-    port: 8080,
+    port: 8089,
     // Removendo HTTPS para desenvolvimento local para evitar problemas de SSL
     // https: {
     //   key: fs.readFileSync(path.resolve(__dirname, 'certs/key.pem')),
