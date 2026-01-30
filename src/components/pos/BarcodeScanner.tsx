@@ -4,12 +4,33 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Scan, Camera, X, AlertTriangle, Wifi } from "lucide-react";
-import { BarcodeDetector } from "barcode-detector";
 
 interface BarcodeScannerProps {
   onCodeScanned: (code: string) => void;
   isOpen: boolean;
   onClose: () => void;
+}
+
+interface DetectedBarcode {
+  rawValue: string;
+  format: string;
+}
+
+// Type for the BarcodeDetector API
+interface BarcodeDetectorAPI {
+  detect: (source: ImageBitmapSource) => Promise<DetectedBarcode[]>;
+}
+
+interface BarcodeDetectorConstructor {
+  new (options?: { formats: string[] }): BarcodeDetectorAPI;
+  getSupportedFormats: () => Promise<string[]>;
+}
+
+// Extend Window interface for native BarcodeDetector
+declare global {
+  interface Window {
+    BarcodeDetector?: BarcodeDetectorConstructor;
+  }
 }
 
 export function BarcodeScanner({ onCodeScanned, isOpen, onClose }: BarcodeScannerProps) {
@@ -18,12 +39,51 @@ export function BarcodeScanner({ onCodeScanned, isOpen, onClose }: BarcodeScanne
   const [error, setError] = useState<string | null>(null);
   const [isSupported, setIsSupported] = useState(false);
   const [scanningActive, setScanningActive] = useState(false);
+  const [detectorReady, setDetectorReady] = useState(false);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const scanIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const detectorRef = useRef<BarcodeDetector | null>(null);
+  const detectorRef = useRef<BarcodeDetectorAPI | null>(null);
+
+  // Initialize barcode detector
+  const initializeDetector = useCallback(async () => {
+    // First, try native BarcodeDetector API (Chrome/Edge with flags or Android)
+    if (window.BarcodeDetector) {
+      try {
+        const formats = await window.BarcodeDetector.getSupportedFormats();
+        console.log('Native BarcodeDetector supported formats:', formats);
+        
+        const supportedFormats = ['code_128', 'code_39', 'ean_13', 'ean_8', 'qr_code', 'upc_a', 'upc_e']
+          .filter(f => formats.includes(f));
+        
+        if (supportedFormats.length > 0) {
+          detectorRef.current = new window.BarcodeDetector({ formats: supportedFormats });
+          setDetectorReady(true);
+          console.log('Using native BarcodeDetector');
+          return true;
+        }
+      } catch (e) {
+        console.warn('Native BarcodeDetector not fully available:', e);
+      }
+    }
+
+    // Fallback: dynamically import the polyfill
+    try {
+      const { BarcodeDetector } = await import('barcode-detector/pure');
+      detectorRef.current = new BarcodeDetector({
+        formats: ['code_128', 'code_39', 'ean_13', 'ean_8', 'qr_code', 'upc_a', 'upc_e']
+      });
+      setDetectorReady(true);
+      console.log('Using barcode-detector polyfill');
+      return true;
+    } catch (e) {
+      console.error('Failed to load barcode detector polyfill:', e);
+      setError('Falha ao carregar o detector de código de barras. Utilize a entrada manual.');
+      return false;
+    }
+  }, []);
 
   // Check camera support on component mount
   useEffect(() => {
@@ -50,10 +110,8 @@ export function BarcodeScanner({ onCodeScanned, isOpen, onClose }: BarcodeScanne
           setIsSupported(true);
           setError(null);
           
-          // Initialize barcode detector (polyfill works on all browsers)
-          detectorRef.current = new BarcodeDetector({
-            formats: ['code_128', 'code_39', 'ean_13', 'ean_8', 'qr_code', 'upc_a', 'upc_e']
-          });
+          // Initialize barcode detector
+          await initializeDetector();
         } else {
           setIsSupported(false);
           setError("Nenhuma câmera encontrada neste dispositivo");
@@ -65,16 +123,14 @@ export function BarcodeScanner({ onCodeScanned, isOpen, onClose }: BarcodeScanne
         setError(null);
         
         // Initialize barcode detector anyway
-        detectorRef.current = new BarcodeDetector({
-          formats: ['code_128', 'code_39', 'ean_13', 'ean_8', 'qr_code', 'upc_a', 'upc_e']
-        });
+        await initializeDetector();
       }
     };
 
     if (isOpen) {
       checkCameraSupport();
     }
-  }, [isOpen]);
+  }, [isOpen, initializeDetector]);
 
   // Barcode detection function
   const detectBarcode = useCallback(async () => {
@@ -100,7 +156,7 @@ export function BarcodeScanner({ onCodeScanned, isOpen, onClose }: BarcodeScanne
         const detectedCode = barcodes[0].rawValue;
         console.log('Código detectado:', detectedCode);
         setScanningActive(false);
-        stopCamera(); // Para a câmera imediatamente
+        stopCamera();
         onCodeScanned(detectedCode);
         onClose();
         return;
@@ -109,8 +165,6 @@ export function BarcodeScanner({ onCodeScanned, isOpen, onClose }: BarcodeScanne
       console.warn('Erro na detecção de código de barras:', error);
     }
   }, [scanningActive, onCodeScanned, onClose]);
-
-
 
   const getErrorMessage = (error: DOMException | Error): string => {
     if (error.name === 'NotAllowedError') {
@@ -137,6 +191,14 @@ export function BarcodeScanner({ onCodeScanned, isOpen, onClose }: BarcodeScanne
       return;
     }
     
+    // Ensure detector is ready
+    if (!detectorRef.current) {
+      const success = await initializeDetector();
+      if (!success) {
+        return;
+      }
+    }
+    
     try {
       setError(null);
       setIsScanning(true);
@@ -148,14 +210,12 @@ export function BarcodeScanner({ onCodeScanned, isOpen, onClose }: BarcodeScanne
           throw new DOMException('Permission denied', 'NotAllowedError');
         }
       } catch (permError) {
-        // Permissions API might not be available, continue anyway
         console.warn("Could not check camera permissions:", permError);
       }
       
-      // Try with ideal constraints first
       let constraints: MediaStreamConstraints = {
         video: { 
-          facingMode: "environment", // Use rear camera
+          facingMode: "environment",
           width: { ideal: 1280 },
           height: { ideal: 720 }
         }
@@ -166,7 +226,6 @@ export function BarcodeScanner({ onCodeScanned, isOpen, onClose }: BarcodeScanne
       try {
         stream = await navigator.mediaDevices.getUserMedia(constraints);
       } catch (firstError: unknown) {
-        // If ideal constraints fail, try with basic constraints
         console.warn("Ideal constraints failed, trying basic constraints:", firstError);
         constraints = {
           video: { 
@@ -177,7 +236,6 @@ export function BarcodeScanner({ onCodeScanned, isOpen, onClose }: BarcodeScanne
         try {
           stream = await navigator.mediaDevices.getUserMedia(constraints);
         } catch (secondError: unknown) {
-          // If rear camera fails, try any camera
           console.warn("Rear camera failed, trying any camera:", secondError);
           constraints = { video: true };
           stream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -188,10 +246,8 @@ export function BarcodeScanner({ onCodeScanned, isOpen, onClose }: BarcodeScanne
         videoRef.current.srcObject = stream;
         streamRef.current = stream;
         
-        // Ensure video plays on mobile
         videoRef.current.onloadedmetadata = () => {
           videoRef.current?.play().then(() => {
-            // Start barcode scanning once video is playing
             setScanningActive(true);
             console.log("Camera started successfully, scanning active");
           }).catch((playError) => {
@@ -209,7 +265,7 @@ export function BarcodeScanner({ onCodeScanned, isOpen, onClose }: BarcodeScanne
       setError(errorMessage);
       setIsScanning(false);
     }
-  }, [isSupported]);
+  }, [isSupported, initializeDetector]);
 
   const stopCamera = useCallback(() => {
     setScanningActive(false);
@@ -230,7 +286,7 @@ export function BarcodeScanner({ onCodeScanned, isOpen, onClose }: BarcodeScanne
 
   const handleManualSubmit = () => {
     if (manualCode.trim()) {
-      stopCamera(); // Para a câmera ao inserir código manual
+      stopCamera();
       onCodeScanned(manualCode.trim());
       setManualCode("");
       onClose();
@@ -239,8 +295,8 @@ export function BarcodeScanner({ onCodeScanned, isOpen, onClose }: BarcodeScanne
 
   // Effect to start/stop scanning interval
   useEffect(() => {
-    if (scanningActive && isScanning) {
-      scanIntervalRef.current = setInterval(detectBarcode, 500); // Scan every 500ms
+    if (scanningActive && isScanning && detectorRef.current) {
+      scanIntervalRef.current = setInterval(detectBarcode, 500);
     } else {
       if (scanIntervalRef.current) {
         clearInterval(scanIntervalRef.current);
@@ -371,6 +427,7 @@ export function BarcodeScanner({ onCodeScanned, isOpen, onClose }: BarcodeScanne
               <p>• Posicione o código de barras dentro da área destacada</p>
               <p>• Certifique-se de que há boa iluminação</p>
               <p>• Se a câmera não funcionar, use a entrada manual</p>
+              <p>• Suporta códigos de barras e QR Codes</p>
             </div>
           </div>
         </CardContent>
@@ -378,4 +435,3 @@ export function BarcodeScanner({ onCodeScanned, isOpen, onClose }: BarcodeScanne
     </div>
   );
 }
-
