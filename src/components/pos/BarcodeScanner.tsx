@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Scan, Camera, X, AlertTriangle, Wifi } from "lucide-react";
+import { BarcodeDetector } from "barcode-detector";
 
 interface BarcodeScannerProps {
   onCodeScanned: (code: string) => void;
@@ -22,6 +23,7 @@ export function BarcodeScanner({ onCodeScanned, isOpen, onClose }: BarcodeScanne
   const streamRef = useRef<MediaStream | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const scanIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const detectorRef = useRef<BarcodeDetector | null>(null);
 
   // Check camera support on component mount
   useEffect(() => {
@@ -47,6 +49,11 @@ export function BarcodeScanner({ onCodeScanned, isOpen, onClose }: BarcodeScanne
         if (hasVideoInput) {
           setIsSupported(true);
           setError(null);
+          
+          // Initialize barcode detector (polyfill works on all browsers)
+          detectorRef.current = new BarcodeDetector({
+            formats: ['code_128', 'code_39', 'ean_13', 'ean_8', 'qr_code', 'upc_a', 'upc_e']
+          });
         } else {
           setIsSupported(false);
           setError("Nenhuma câmera encontrada neste dispositivo");
@@ -56,6 +63,11 @@ export function BarcodeScanner({ onCodeScanned, isOpen, onClose }: BarcodeScanne
         // Fallback: assume camera is available and let getUserMedia handle the error
         setIsSupported(true);
         setError(null);
+        
+        // Initialize barcode detector anyway
+        detectorRef.current = new BarcodeDetector({
+          formats: ['code_128', 'code_39', 'ean_13', 'ean_8', 'qr_code', 'upc_a', 'upc_e']
+        });
       }
     };
 
@@ -66,7 +78,7 @@ export function BarcodeScanner({ onCodeScanned, isOpen, onClose }: BarcodeScanne
 
   // Barcode detection function
   const detectBarcode = useCallback(async () => {
-    if (!videoRef.current || !canvasRef.current || !scanningActive) return;
+    if (!videoRef.current || !canvasRef.current || !scanningActive || !detectorRef.current) return;
 
     const video = videoRef.current;
     const canvas = canvasRef.current;
@@ -82,27 +94,16 @@ export function BarcodeScanner({ onCodeScanned, isOpen, onClose }: BarcodeScanne
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     
     try {
-      // Check if BarcodeDetector is available
-      if ('BarcodeDetector' in window) {
-        const barcodeDetector = new (window as { BarcodeDetector: BarcodeDetectorConstructor }).BarcodeDetector({
-          formats: ['code_128', 'code_39', 'ean_13', 'ean_8', 'qr_code']
-        });
-        
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const barcodes = await barcodeDetector.detect(imageData);
-        
-        if (barcodes.length > 0) {
-          const detectedCode = barcodes[0].rawValue;
-          console.log('Código detectado:', detectedCode);
-          setScanningActive(false);
-          stopCamera(); // Para a câmera imediatamente
-          onCodeScanned(detectedCode);
-          onClose();
-          return;
-        }
-      } else {
-        setError("Seu navegador não suporta a detecção de código de barras nativa (Google Reader). Use Chrome ou Edge.");
+      const barcodes = await detectorRef.current.detect(canvas);
+      
+      if (barcodes.length > 0) {
+        const detectedCode = barcodes[0].rawValue;
+        console.log('Código detectado:', detectedCode);
         setScanningActive(false);
+        stopCamera(); // Para a câmera imediatamente
+        onCodeScanned(detectedCode);
+        onClose();
+        return;
       }
     } catch (error) {
       console.warn('Erro na detecção de código de barras:', error);
@@ -378,8 +379,3 @@ export function BarcodeScanner({ onCodeScanned, isOpen, onClose }: BarcodeScanne
   );
 }
 
-interface BarcodeDetectorConstructor {
-  new (options: { formats: string[] }): {
-    detect: (imageData: ImageData) => Promise<Array<{ rawValue: string }>>;
-  };
-}
