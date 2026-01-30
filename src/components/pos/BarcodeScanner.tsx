@@ -85,7 +85,7 @@ export function BarcodeScanner({ onCodeScanned, isOpen, onClose }: BarcodeScanne
       // Check if BarcodeDetector is available
       if ('BarcodeDetector' in window) {
         const barcodeDetector = new (window as { BarcodeDetector: BarcodeDetectorConstructor }).BarcodeDetector({
-          formats: ['code_128', 'code_39', 'ean_13', 'ean_8']
+          formats: ['code_128', 'code_39', 'ean_13', 'ean_8', 'qr_code']
         });
         
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
