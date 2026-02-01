@@ -18,7 +18,7 @@ export function Layout({ children, title, className }: LayoutProps) {
       <div className="flex h-screen bg-background flex-col">
         {/* Header simplificado ou removido dependendo do requisito. Manter Header por enquanto */}
         <Header title={title} />
-        <main className={`flex-1 overflow-y-auto p-4 ${className}`}>
+        <main className={`flex-1 overflow-y-auto p-2 ${className}`}>
           {children}
         </main>
       </div>

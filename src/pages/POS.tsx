@@ -363,12 +363,12 @@ const POS = () => {
         </div>
 
         {/* Cart Section */}
-        <div className="pos-cart space-y-4">
+        <div className="pos-cart space-y-3">
           {/* Customer Selection */}
           <Card className="card-elevated">
-            <CardContent className="p-3">
+            <CardContent className="p-2">
               <div className="flex items-center justify-between">
-                <div className="flex-1 min-w-0">
+                <div className="flex-1 min-w-0 mr-2">
                   {selectedCustomer ? (
                     <div>
                       <div className="font-medium text-sm truncate">{selectedCustomer.nome}</div>
@@ -383,22 +383,22 @@ const POS = () => {
                 <CustomerSearchDialog
                   triggerLabel={selectedCustomer ? "Trocar" : "Selecionar"}
                   onSelect={(c: Customer) => handleCustomerSelect(c)}
-                  onClear={() => handleCustomerSelect(null as any)} // se quiser um "limpar"
+                  onClear={() => handleCustomerSelect(null as any)}
                 />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="card-elevated">
-            <CardHeader className="pb-3">
+          <Card className="card-elevated flex flex-col h-full max-h-[calc(100vh-16rem)] lg:max-h-full">
+            <CardHeader className="pb-2 pt-3 px-3">
               <CardTitle className="flex items-center text-base">
                 <ShoppingCart className="mr-2 h-4 w-4" />
                 Carrinho ({cartItems.length})
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3 pt-0">
+            <CardContent className="space-y-3 pt-0 px-3 pb-3 flex-1 flex flex-col">
               {/* Cart Items */}
-              <div className="space-y-2 max-h-48 sm:max-h-64 overflow-y-auto">
+              <div className="space-y-2 flex-1 overflow-y-auto min-h-0">
                 {cartItems.length === 0 ? (
                   <p className="text-center text-muted-foreground py-6 text-sm">
                     Carrinho vazio
@@ -408,7 +408,9 @@ const POS = () => {
                     <div key={item.id} className="flex items-center justify-between p-2 bg-muted/30 rounded-lg">
                       <div className="flex-1 min-w-0 pr-2">
                         <h4 className="font-medium text-sm truncate">{item.name}</h4>
-                        <p className="text-xs text-muted-foreground truncate">{item.sku}</p>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <span className="truncate">{item.sku}</span>
+                        </div>
                         <p className="text-sm font-semibold">R$ {item.final_price.toFixed(2)}</p>
                       </div>
                       <div className="flex items-center space-x-1 shrink-0">
@@ -446,10 +448,12 @@ const POS = () => {
               <Separator />
 
               {/* Discount */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Desconto (R$ ou %)</label>
-                <div className="flex space-x-2">
-                  <input
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                   <Percent className="h-3 w-3 text-muted-foreground" />
+                   <span className="text-xs font-medium text-muted-foreground">Desconto</span>
+                </div>
+                <input
                     type="text"
                     defaultValue=""
                     onKeyDown={(e) => {
@@ -466,7 +470,6 @@ const POS = () => {
                     }}
                     onChange={(e) => {
                       const raw = e.target.value;
-                      console.log('Input value:', raw); // Debug
                       
                       // Se vazio, zera tudo
                       if (!raw.trim()) {
@@ -481,84 +484,80 @@ const POS = () => {
                       // Normaliza vírgula para ponto e remove % para parsing
                       const valueStr = raw.replace(',', '.').replace('%', '').trim();
                       
-                      // Se não conseguir fazer parse, mantém o estado atual (permite digitação incompleta)
+                      // Se não conseguir fazer parse, mantém o estado atual
                       const num = parseFloat(valueStr);
                       if (isNaN(num) || num < 0) {
-                        return; // Mantém estado atual durante digitação
+                        return;
                       }
 
                       if (isPercent) {
-                        // É percentual: aplica sobre o total
                         setDiscount(0);
                         setDiscountPercent(num);
                       } else {
-                        // É valor em R$: aplica valor fixo
                         setDiscount(num);
                         setDiscountPercent(0);
                       }
                     }}
-                    placeholder="Ex: 0,50 ou 0,5%"
-                    className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 flex-1 font-mono"
+                    placeholder="R$ 0,00 ou %"
+                    className="flex h-8 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 font-mono"
                   />
-                </div>
               </div>
 
-              <Separator />
-
               {/* Totals */}
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
+              <div className="space-y-1 bg-muted/20 p-2 rounded-lg">
+                <div className="flex justify-between text-xs text-muted-foreground">
                   <span>Subtotal:</span>
                   <span>R$ {subtotal.toFixed(2)}</span>
                 </div>
                 {totalDiscount > 0 && (
-                  <div className="flex justify-between text-sm text-destructive">
+                  <div className="flex justify-between text-xs text-destructive">
                     <span>Desconto:</span>
                     <span>-R$ {totalDiscount.toFixed(2)}</span>
                   </div>
                 )}
-                <div className="flex justify-between text-base font-bold">
-                  <span>Total:</span>
-                  <span>R$ {total.toFixed(2)}</span>
+                <div className="flex justify-between items-end mt-1">
+                  <span className="text-sm font-medium">Total:</span>
+                  <span className="text-xl font-bold text-primary">R$ {total.toFixed(2)}</span>
                 </div>
               </div>
 
               {/* Payment Buttons */}
               <div className="space-y-2">
                 <Button 
-                  className="w-full btn-pos-primary h-11"
+                  className="w-full btn-pos-primary h-12"
                   disabled={cartItems.length === 0 || isProcessing}
                   onClick={() => setIsPaymentModalOpen(true)}
                 >
-                  <DollarSign className="mr-2 h-4 w-4" />
-                  <span className="text-sm font-medium">
-                    {isProcessing ? "Processando..." : `Finalizar - R$ ${total.toFixed(2)}`}
+                  <DollarSign className="mr-2 h-5 w-5" />
+                  <span className="text-base font-bold">
+                    {isProcessing ? "..." : "FINALIZAR"}
                   </span>
                 </Button>
                 
                 <div className="grid grid-cols-2 gap-2">
                   <Button 
                     variant="outline"
-                    className="btn-pos h-10"
+                    className="h-9"
                     disabled={cartItems.length === 0}
                     onClick={() => setIsPaymentModalOpen(true)}
                   >
-                    <CreditCard className="mr-1 h-4 w-4" />
-                    <span className="text-sm">Cartão</span>
+                    <CreditCard className="mr-1 h-3 w-3" />
+                    <span className="text-xs">Cartão</span>
                   </Button>
                   <Button 
                     variant="outline"
-                    className="btn-pos h-10"
+                    className="h-9"
                     onClick={() => setShowKeypad(!showKeypad)}
                     disabled={cartItems.length === 0}
                   >
-                    <span className="mr-1">🔢</span>
-                    <span className="text-sm">Teclado</span>
+                    <span className="mr-1 text-xs">🔢</span>
+                    <span className="text-xs">Teclado</span>
                   </Button>
                 </div>
               </div>
             </CardContent>
           </Card>
+
 
           {/* Numeric Keypad for Mobile */}
           {showKeypad && (

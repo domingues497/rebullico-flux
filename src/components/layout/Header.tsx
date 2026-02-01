@@ -11,6 +11,7 @@ import {
 import { Bell, LogOut, User, Store } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Link } from "react-router-dom";
+import { Capacitor } from "@capacitor/core";
 
 interface HeaderProps {
   title?: string;
@@ -18,36 +19,41 @@ interface HeaderProps {
 
 export function Header({ title }: HeaderProps) {
   const { user, profile, signOut } = useAuth();
+  const isNative = Capacitor.isNativePlatform();
 
   return (
-    <header className="bg-card border-b border-border px-6 py-4">
-      <div className="flex items-center justify-between">
-        <div>
+    <header className={`bg-card border-b border-border ${isNative ? 'px-3 py-2' : 'px-6 py-4'}`}>
+      <div className="flex items-center justify-between gap-2">
+        <div className="min-w-0 flex-1">
           {title && (
-            <h1 className="text-2xl font-semibold text-foreground">{title}</h1>
+            <h1 className={`font-semibold text-foreground truncate ${isNative ? 'text-lg' : 'text-2xl'}`}>
+              {isNative && title.includes(' - ') ? title.split(' - ')[0] : title}
+            </h1>
           )}
         </div>
 
-        <div className="flex items-center space-x-4">
-          {/* Link to Store */}
-          <Link to="/">
-            <Button variant="outline" size="sm" className="gap-2">
-              <Store className="h-4 w-4" />
-              Voltar para Loja
-            </Button>
-          </Link>
+        <div className="flex items-center space-x-2 sm:space-x-4 flex-shrink-0">
+          {/* Link to Store - Hidden on Native */}
+          {!isNative && (
+            <Link to="/">
+              <Button variant="outline" size="sm" className="gap-2">
+                <Store className="h-4 w-4" />
+                Voltar para Loja
+              </Button>
+            </Link>
+          )}
 
           {/* Notifications */}
-          <Button variant="ghost" size="icon" className="relative">
+          <Button variant="ghost" size="icon" className="relative h-9 w-9">
             <Bell className="h-5 w-5" />
-            <span className="absolute -top-1 -right-1 h-3 w-3 bg-destructive rounded-full text-xs"></span>
+            <span className="absolute -top-1 -right-1 h-2.5 w-2.5 bg-destructive rounded-full text-xs"></span>
           </Button>
 
           {/* User Menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-                <Avatar className="h-10 w-10">
+              <Button variant="ghost" className="relative h-9 w-9 rounded-full">
+                <Avatar className="h-9 w-9">
                   <AvatarImage src="" alt="Usuário" />
                   <AvatarFallback>
                     {profile?.name?.charAt(0)?.toUpperCase() || user?.email?.charAt(0)?.toUpperCase() || 'U'}
