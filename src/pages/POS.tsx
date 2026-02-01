@@ -268,6 +268,9 @@ const POS = () => {
       const result = await processSale(paymentsWithFees as any, observations);
       setIsPaymentModalOpen(false);
       
+      // Recarregar produtos para atualizar estoque
+      await loadProducts();
+      
       // Preparar dados do recibo e abrir modal
       if (result && result.receiptData) {
         setReceiptData({
