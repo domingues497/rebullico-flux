@@ -24,8 +24,31 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
     );
   }
 
-  if (!user || !profile) {
+  if (!user) {
     return <LoginForm />;
+  }
+
+  if (!profile) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-subtle p-4">
+        <Card className="card-elevated max-w-md">
+          <CardContent className="text-center p-8">
+            <div className="text-destructive text-6xl mb-4">⚠️</div>
+            <h2 className="text-2xl font-bold mb-2">Erro de Perfil</h2>
+            <p className="text-muted-foreground mb-4">
+              Não foi possível carregar as informações do seu perfil.
+              Isso pode acontecer por problemas de conexão ou permissão.
+            </p>
+            <button 
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
+            >
+              Tentar Novamente
+            </button>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   if (requiredRole && profile.role?.name !== requiredRole && profile.role?.name !== 'admin') {

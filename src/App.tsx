@@ -1,6 +1,6 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { useAuth } from "@/hooks/useAuth";
 import Home from "./pages/Home";
@@ -15,11 +15,24 @@ import StockEntries from './pages/StockEntries';
 import Suppliers from './pages/Suppliers';
 import NotFound from './pages/NotFound';
 import Login from "./pages/Login";
+import { Capacitor } from '@capacitor/core';
 
 const queryClient = new QueryClient();
 
 function AppRoutes() {
   const { user, loading } = useAuth();
+  const navigate = useNavigate();
+
+  // Redirect native app users to login/pos if they hit root
+  useEffect(() => {
+    if (Capacitor.isNativePlatform() && window.location.pathname === '/' && !loading) {
+      if (user) {
+        navigate('/pos');
+      } else {
+        navigate('/login');
+      }
+    }
+  }, [loading, user, navigate]);
 
   if (loading) {
     return (
@@ -29,15 +42,22 @@ function AppRoutes() {
     );
   }
 
+  // Helper to decide where to go after login if user tries to access login page while auth
+  const getAuthRedirect = () => {
+    return Capacitor.isNativePlatform() ? "/pos" : "/admin";
+  };
+
   return (
     <Routes>
-      {/* Public route - Landing page */}
+      {/* Public route - Landing page 
+          No app nativo, a Home é pulada pelo useEffect acima, mas mantemos a rota para web
+      */}
       <Route path="/" element={<Home />} />
       
       {/* Login route */}
       <Route 
         path="/login" 
-        element={user ? <Navigate to="/admin" replace /> : <Login />} 
+        element={user ? <Navigate to={getAuthRedirect()} replace /> : <Login />} 
       />
       
       {/* Protected admin routes */}

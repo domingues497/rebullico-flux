@@ -23,20 +23,52 @@ export const useSettings = () => {
 
       // Se não existir configuração, criar uma padrão
       if (!data) {
-        const { data: newData, error: insertError } = await supabase
-          .from('settings')
-          .insert({
+        // Verificar se usuário está autenticado antes de tentar criar
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session) {
+          const { data: newData, error: insertError } = await supabase
+            .from('settings')
+            .insert({
+              store_name: 'Rebulliço',
+              store_cnpj: '',
+              store_address: 'Rua da Moda, 123 - Centro',
+              store_phone: '(11) 99999-9999',
+              store_email: ''
+            } as any)
+            .select()
+            .single();
+
+          if (insertError) throw insertError;
+          setSettings(newData);
+        } else {
+          console.log('Settings not found and user not authenticated. Using defaults.');
+          // Fallback defaults for unauthenticated users to avoid RLS error
+          setSettings({
+            id: 'default',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
             store_name: 'Rebulliço',
             store_cnpj: '',
             store_address: 'Rua da Moda, 123 - Centro',
             store_phone: '(11) 99999-9999',
-            store_email: ''
-          } as any)
-          .select()
-          .single();
-
-        if (insertError) throw insertError;
-        setSettings(newData);
+            store_email: '',
+            enable_rounding_to_05: true,
+            allow_price_edit_seller: false,
+            auto_print_receipt: true,
+            receipt_footer: 'Obrigado pela preferência! Trocas em até 7 dias.',
+            default_tax_rate: 0,
+            currency_symbol: 'R$',
+            low_stock_alert: true,
+            low_stock_threshold: 10,
+            auto_update_stock: true,
+            track_inventory: true,
+            auto_backup: false,
+            backup_frequency_days: 7,
+            theme: 'light',
+            language: 'pt-BR'
+          });
+        }
       } else {
         setSettings(data);
       }

@@ -1,24 +1,43 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/useAuth';
-import { Eye, EyeOff, LogIn } from 'lucide-react';
+import { Eye, EyeOff, LogIn, AlertCircle } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Capacitor } from '@capacitor/core';
 
 export function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
   const { signIn } = useAuth();
+  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setLocalError(null);
     
     try {
-      await signIn(email, password);
+      const result = await signIn(email, password);
+      if (!result.success) {
+        setLocalError(result.error || 'Falha ao realizar login');
+      } else {
+        // Se estiver no Android/iOS ou for app nativo, vai para o POS
+        if (Capacitor.isNativePlatform()) {
+          navigate('/pos');
+        } else {
+          // Web normal vai para admin
+          navigate('/admin');
+        }
+      }
+    } catch (err: any) {
+      setLocalError(err.message || 'Erro inesperado');
     } finally {
       setIsLoading(false);
     }
@@ -41,6 +60,15 @@ export function LoginForm() {
         
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
+            {localError && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Erro</AlertTitle>
+                <AlertDescription>
+                  {localError}
+                </AlertDescription>
+              </Alert>
+            )}
             <div className="space-y-2">
               <Label htmlFor="email">E-mail</Label>
               <Input
