@@ -235,7 +235,15 @@ export function PaymentModal({ isOpen, onClose, total, onConfirm, isProcessing }
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label>Forma de Pagamento</Label>
-                  <Select value={selectedMethod} onValueChange={setSelectedMethod}>
+                  <Select 
+                    value={selectedMethod} 
+                    onValueChange={(value) => {
+                      setSelectedMethod(value);
+                      const currentTotalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
+                      const currentRemaining = Math.max(0, total - currentTotalPaid);
+                      setAmount(currentRemaining.toFixed(2));
+                    }}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione..." />
                     </SelectTrigger>
