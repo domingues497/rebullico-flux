@@ -63,7 +63,7 @@ export function StockEntryModal({ open, onOpenChange, onSave }: Props) {
 
   const parseNFeXML = (file: File) => {
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       const text = e.target?.result as string;
       if (!text) return;
 
@@ -99,41 +99,61 @@ export function StockEntryModal({ open, onOpenChange, onSave }: Props) {
             } else if (xNome) {
               // Tentar cadastrar fornecedor automaticamente
               try {
-                // Extrair dados de endereço para contato
-                const enderEmit = emit.getElementsByTagName("enderEmit")[0];
-                let contato: any = {};
-                
-                if (enderEmit) {
-                  const xLgr = enderEmit.getElementsByTagName("xLgr")[0]?.textContent || '';
-                  const nro = enderEmit.getElementsByTagName("nro")[0]?.textContent || '';
-                  const xBairro = enderEmit.getElementsByTagName("xBairro")[0]?.textContent || '';
-                  const xMun = enderEmit.getElementsByTagName("xMun")[0]?.textContent || '';
-                  const UF = enderEmit.getElementsByTagName("UF")[0]?.textContent || '';
-                  const CEP = enderEmit.getElementsByTagName("CEP")[0]?.textContent || '';
-                  const fone = enderEmit.getElementsByTagName("fone")[0]?.textContent || '';
+                let supplierData: any = {
+                  nome: xFant || xNome,
+                  cnpj_cpf: cleanCnpj,
+                  contato: {}
+                };
 
-                  contato = {
-                    endereco: `${xLgr}, ${nro} - ${xBairro}, ${xMun} - ${UF}`,
-                    cep: CEP,
-                    telefone: fone
-                  };
+                // Tentar buscar dados na BrasilAPI
+                try {
+                  const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cleanCnpj}`);
+                  if (response.ok) {
+                    const apiData = await response.json();
+                    supplierData.nome = apiData.nome_fantasia || apiData.razao_social || supplierData.nome;
+                    supplierData.contato = {
+                      endereco: `${apiData.logradouro}, ${apiData.numero} - ${apiData.bairro}, ${apiData.municipio} - ${apiData.uf}`,
+                      cep: apiData.cep,
+                      telefone: apiData.ddd_telefone_1
+                    };
+                    toast({
+                      title: "Dados obtidos da Receita",
+                      description: "Dados do fornecedor enriquecidos via API.",
+                    });
+                  } else {
+                    throw new Error('API request failed');
+                  }
+                } catch (apiError) {
+                  // Fallback para dados do XML se a API falhar
+                  console.log("Fallback para XML:", apiError);
+                  const enderEmit = emit.getElementsByTagName("enderEmit")[0];
+                  
+                  if (enderEmit) {
+                    const xLgr = enderEmit.getElementsByTagName("xLgr")[0]?.textContent || '';
+                    const nro = enderEmit.getElementsByTagName("nro")[0]?.textContent || '';
+                    const xBairro = enderEmit.getElementsByTagName("xBairro")[0]?.textContent || '';
+                    const xMun = enderEmit.getElementsByTagName("xMun")[0]?.textContent || '';
+                    const UF = enderEmit.getElementsByTagName("UF")[0]?.textContent || '';
+                    const CEP = enderEmit.getElementsByTagName("CEP")[0]?.textContent || '';
+                    const fone = enderEmit.getElementsByTagName("fone")[0]?.textContent || '';
+
+                    supplierData.contato = {
+                      endereco: `${xLgr}, ${nro} - ${xBairro}, ${xMun} - ${UF}`,
+                      cep: CEP,
+                      telefone: fone
+                    };
+                  }
                 }
 
-                // Chamar createSupplier (precisa ser transformado em Promise/async wrapper se não for direto)
-                // Como estamos dentro de um callback síncrono (onload), vamos chamar a função assíncrona
-                createSupplier({
-                  nome: xFant || xNome, // Preferência pelo Nome Fantasia
-                  cnpj_cpf: cleanCnpj,
-                  contato: contato
-                }).then((newSupplier) => {
-                  if (newSupplier) {
-                    setSupplierId(newSupplier.id);
-                    toast({
-                      title: "Fornecedor Cadastrado",
-                      description: `O fornecedor ${xFant || xNome} foi cadastrado automaticamente.`,
-                    });
-                  }
-                });
+                // Criar fornecedor
+                const newSupplier = await createSupplier(supplierData);
+                if (newSupplier) {
+                  setSupplierId(newSupplier.id);
+                  toast({
+                    title: "Fornecedor Cadastrado",
+                    description: `O fornecedor ${supplierData.nome} foi cadastrado automaticamente.`,
+                  });
+                }
 
               } catch (err) {
                 console.error("Erro ao cadastrar fornecedor auto:", err);
