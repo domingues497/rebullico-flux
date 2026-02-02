@@ -319,7 +319,7 @@ const POS = () => {
                     className="pl-10 h-10"
                   />
                 </div>
-                  <Button variant="outline" size="icon" onClick={() => setIsScannerOpen(true)} className="h-10 w-10">
+                  <Button variant="outline" size="icon" onClick={() => setIsScannerOpen(true)} className="h-10 w-10 shrink-0">
                     <Scan className="h-4 w-4" />
                   </Button>
               </div>
@@ -327,7 +327,7 @@ const POS = () => {
           </Card>
 
           {/* Products Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-3 pb-4">
             {filteredProducts.map((product) => (
               <Card
                 key={product.id}
