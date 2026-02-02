@@ -22,7 +22,10 @@ export function Header({ title }: HeaderProps) {
   const isNative = Capacitor.isNativePlatform();
 
   return (
-    <header className={`bg-card border-b border-border ${isNative ? 'px-3 py-2' : 'px-6 py-4'}`}>
+    <header 
+      className={`bg-card border-b border-border ${isNative ? 'px-3 py-2' : 'px-6 py-4'}`}
+      style={isNative ? { paddingTop: 'max(0.5rem, env(safe-area-inset-top) + 0.5rem)' } : undefined}
+    >
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0 flex-1">
           {title && (

@@ -16,6 +16,7 @@ import { useSettings } from "@/hooks/useSettings";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import CustomerSearchDialog, { Customer } from "@/components/customers/CustomerSearchDialog";
+import { Capacitor } from "@capacitor/core";
 
 import { 
   ShoppingCart,
@@ -86,6 +87,7 @@ const POS = () => {
   });
   const { toast } = useToast();
   const { getSetting } = useSettings();
+  const isNative = Capacitor.isNativePlatform();
   
   const {
     cartItems,
@@ -307,7 +309,7 @@ const POS = () => {
         {/* Products Section */}
         <div className="pos-products space-y-4">
           {/* Search Bar */}
-          <Card className="card-flat">
+          <Card className="card-flat pos-el-search">
             <CardContent className="p-3">
               <div className="flex space-x-2">
                 <div className="relative flex-1">
@@ -327,45 +329,37 @@ const POS = () => {
           </Card>
 
           {/* Products Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-3 pb-4">
+          {(!isNative || searchTerm.length > 0) && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-3 pb-4 pos-el-products-grid">
             {filteredProducts.map((product) => (
-              <Card
-                key={product.id}
-                className="card-elevated hover:shadow-xl transition-all cursor-pointer"
+              <Card 
+                key={product.id} 
+                className="cursor-pointer hover:border-primary transition-colors"
                 onClick={() => handleAddToCart(product)}
               >
                 <CardContent className="p-3">
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-start">
-                      <h3 className="font-semibold text-sm leading-tight">{product.name}</h3>
-                      <Badge variant={product.stock > 10 ? "default" : "destructive"} className="text-xs">
-                        {product.stock}
-                      </Badge>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      SKU: {product.sku}
-                      {product.ean && <span> • EAN: {product.ean}</span>}
-                      {product.cod_fabricante && <span> • Fab: {product.cod_fabricante}</span>}
-                    </p>
-                    <div className="flex justify-between items-center">
-                      <span className="text-base font-bold text-primary">
-                        R$ {product.price.toFixed(2)}
-                      </span>
-                      <Button size="sm" className="btn-pos-primary h-8 w-8 p-0">
-                        <Plus className="h-4 w-4" />
-                      </Button>
-                    </div>
+                  <div className="flex justify-between items-start mb-2">
+                    <span className="text-xs text-muted-foreground font-mono">{product.sku}</span>
+                    {product.stock <= 0 && <Badge variant="destructive" className="h-5 text-[10px] px-1">Sem estoque</Badge>}
+                  </div>
+                  <h3 className="font-medium text-sm line-clamp-2 mb-2 h-10" title={product.name}>{product.name}</h3>
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-primary">R$ {product.price.toFixed(2)}</span>
+                    <Button size="icon" variant="ghost" className="h-6 w-6">
+                      <Plus className="h-4 w-4" />
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
             ))}
           </div>
+          )}
         </div>
 
         {/* Cart Section */}
         <div className="pos-cart space-y-3">
           {/* Customer Selection */}
-          <Card className="card-elevated">
+          <Card className="card-elevated pos-el-customer">
             <CardContent className="p-2">
               <div className="flex items-center justify-between">
                 <div className="flex-1 min-w-0 mr-2">
@@ -389,7 +383,7 @@ const POS = () => {
             </CardContent>
           </Card>
 
-          <Card className="card-elevated flex flex-col h-full max-h-[calc(100vh-16rem)] lg:max-h-full">
+          <Card className="card-elevated flex flex-col pos-el-cart lg:h-full lg:max-h-full">
             <CardHeader className="pb-2 pt-3 px-3">
               <CardTitle className="flex items-center text-base">
                 <ShoppingCart className="mr-2 h-4 w-4" />

@@ -160,14 +160,34 @@
     @apply order-1 lg:order-2 lg:col-span-4 xl:col-span-3 sticky top-0;
   }
 
-  /* Ajuste para evitar sobreposição em telas pequenas */
+  /* Ajuste para evitar sobreposição em telas pequenas e reorganizar layout */
   @media (max-width: 1024px) {
-    .pos-products {
-      @apply max-h-none order-1; /* Volta a ordem natural: Produtos/Busca em cima */
+    /* 
+      Usamos display: contents para que os filhos (Cards) façam parte do Grid principal.
+      Isso permite reordenar livremente os blocos: Cliente, Carrinho, Busca, Produtos.
+    */
+    .pos-products, .pos-cart {
+      display: contents;
     }
-    
-    .pos-cart {
-      @apply relative mb-4 z-10 order-2; /* Carrinho/Finalizar em baixo */
+
+    .pos-el-customer {
+      order: 1; /* Cliente no topo */
+      @apply mb-2;
+    }
+
+    .pos-el-search {
+      order: 2; /* Busca abaixo do cliente */
+      @apply mb-4;
+    }
+
+    .pos-el-cart {
+      order: 3; /* Carrinho abaixo da busca */
+      @apply mb-4 z-10 max-h-none h-auto; /* Altura automática para crescer com o conteúdo */
+    }
+
+    .pos-el-products-grid {
+      order: 4; /* Grid de produtos por último */
+      @apply mb-4;
     }
   }
 
