@@ -486,7 +486,7 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
                 <div>
                   <CardTitle>Variantes do Produto</CardTitle>
                   <p className="text-sm text-muted-foreground mt-1">
-                    Cada variante tem estoque independente (por cor, tamanho, etc.)
+                    Cada variante tem estoque independente (por cor, tamanho, etc...)
                   </p>
                 </div>
                 <Button type="button" variant="outline" size="sm" onClick={addVariant}>
