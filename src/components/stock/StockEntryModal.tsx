@@ -117,8 +117,8 @@ export function StockEntryModal({ open, onOpenChange, onSave }: Props) {
                       telefone: apiData.ddd_telefone_1
                     };
                     toast({
-                      title: "Dados obtidos da Receita",
-                      description: "Dados do fornecedor enriquecidos via API.",
+                      title: "Dados obtidos da Receita!",
+                      description: "Dados do fornecedor enriquecidos via API!",
                     });
                   } else {
                     throw new Error('API request failed');
