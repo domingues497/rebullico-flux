@@ -24,7 +24,7 @@ interface Props {
 
 export function StockEntryModal({ open, onOpenChange, onSave }: Props) {
   const { toast } = useToast();
-  const { suppliers } = useSuppliers();
+  const { suppliers, createSupplier } = useSuppliers();
   const { products } = useProducts();
 
   const [numeroNota, setNumeroNota] = useState('');
@@ -51,8 +51,159 @@ export function StockEntryModal({ open, onOpenChange, onSave }: Props) {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      setAnexoFile(e.target.files[0]);
+      const file = e.target.files[0];
+      setAnexoFile(file);
+
+      // Se for XML, tentar ler e preencher campos
+      if (file.name.toLowerCase().endsWith('.xml')) {
+        parseNFeXML(file);
+      }
     }
+  };
+
+  const parseNFeXML = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      if (!text) return;
+
+      try {
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(text, "text/xml");
+
+        // 1. Número da Nota
+        const nNF = xmlDoc.getElementsByTagName("nNF")[0]?.textContent;
+        if (nNF) setNumeroNota(nNF);
+
+        // 2. Data de Emissão
+        const dhEmi = xmlDoc.getElementsByTagName("dhEmi")[0]?.textContent;
+        if (dhEmi) {
+          // Formato esperado: YYYY-MM-DD...
+          setData(dhEmi.split('T')[0]);
+        }
+
+        // 3. Fornecedor
+        const emit = xmlDoc.getElementsByTagName("emit")[0];
+        if (emit) {
+          const cnpj = emit.getElementsByTagName("CNPJ")[0]?.textContent;
+          const xNome = emit.getElementsByTagName("xNome")[0]?.textContent;
+          const xFant = emit.getElementsByTagName("xFant")[0]?.textContent;
+          
+          if (cnpj) {
+            // Remove pontuação para comparação
+            const cleanCnpj = cnpj.replace(/\D/g, '');
+            const foundSupplier = suppliers.find(s => s.cnpj_cpf?.replace(/\D/g, '') === cleanCnpj);
+            
+            if (foundSupplier) {
+              setSupplierId(foundSupplier.id);
+            } else if (xNome) {
+              // Tentar cadastrar fornecedor automaticamente
+              try {
+                // Extrair dados de endereço para contato
+                const enderEmit = emit.getElementsByTagName("enderEmit")[0];
+                let contato: any = {};
+                
+                if (enderEmit) {
+                  const xLgr = enderEmit.getElementsByTagName("xLgr")[0]?.textContent || '';
+                  const nro = enderEmit.getElementsByTagName("nro")[0]?.textContent || '';
+                  const xBairro = enderEmit.getElementsByTagName("xBairro")[0]?.textContent || '';
+                  const xMun = enderEmit.getElementsByTagName("xMun")[0]?.textContent || '';
+                  const UF = enderEmit.getElementsByTagName("UF")[0]?.textContent || '';
+                  const CEP = enderEmit.getElementsByTagName("CEP")[0]?.textContent || '';
+                  const fone = enderEmit.getElementsByTagName("fone")[0]?.textContent || '';
+
+                  contato = {
+                    endereco: `${xLgr}, ${nro} - ${xBairro}, ${xMun} - ${UF}`,
+                    cep: CEP,
+                    telefone: fone
+                  };
+                }
+
+                // Chamar createSupplier (precisa ser transformado em Promise/async wrapper se não for direto)
+                // Como estamos dentro de um callback síncrono (onload), vamos chamar a função assíncrona
+                createSupplier({
+                  nome: xFant || xNome, // Preferência pelo Nome Fantasia
+                  cnpj_cpf: cleanCnpj,
+                  contato: contato
+                }).then((newSupplier) => {
+                  if (newSupplier) {
+                    setSupplierId(newSupplier.id);
+                    toast({
+                      title: "Fornecedor Cadastrado",
+                      description: `O fornecedor ${xFant || xNome} foi cadastrado automaticamente.`,
+                    });
+                  }
+                });
+
+              } catch (err) {
+                console.error("Erro ao cadastrar fornecedor auto:", err);
+                toast({
+                  title: "Aviso",
+                  description: `Fornecedor ${xNome} não encontrado e não foi possível cadastrar automaticamente.`,
+                });
+              }
+            } else {
+              toast({
+                title: "Fornecedor não encontrado",
+                description: `O CNPJ ${cnpj} não foi encontrado no cadastro.`,
+              });
+            }
+          }
+        }
+
+        // 4. Itens
+        const dets = xmlDoc.getElementsByTagName("det");
+        const newItems: StockEntryItem[] = [];
+
+        for (let i = 0; i < dets.length; i++) {
+          const det = dets[i];
+          const prod = det.getElementsByTagName("prod")[0];
+          if (!prod) continue;
+
+          const cProd = prod.getElementsByTagName("cProd")[0]?.textContent;
+          const cEAN = prod.getElementsByTagName("cEAN")[0]?.textContent;
+          const qCom = parseFloat(prod.getElementsByTagName("qCom")[0]?.textContent || "0");
+          const vUnCom = parseFloat(prod.getElementsByTagName("vUnCom")[0]?.textContent || "0");
+
+          let matchedVariantId = '';
+
+          // Tentar encontrar produto pelo EAN
+          if (cEAN && cEAN !== "SEM GTIN") {
+            const match = products.find(p => p.ean === cEAN);
+            if (match) matchedVariantId = match.variant_id;
+          }
+
+          // Se não encontrou, tentar pelo código do fabricante ou SKU
+          if (!matchedVariantId && cProd) {
+            const match = products.find(p => p.cod_fabricante === cProd || p.sku === cProd);
+            if (match) matchedVariantId = match.variant_id;
+          }
+
+          newItems.push({
+            product_variant_id: matchedVariantId, // vazio se não encontrar
+            quantidade: qCom,
+            custo_unit: vUnCom
+          });
+        }
+
+        if (newItems.length > 0) {
+          setItems(newItems);
+          toast({
+            title: "Nota Fiscal processada",
+            description: `${newItems.length} itens identificados no arquivo.`,
+          });
+        }
+
+      } catch (error) {
+        console.error("Erro ao ler XML:", error);
+        toast({
+          title: "Erro ao ler arquivo",
+          description: "Não foi possível processar o arquivo XML.",
+          variant: "destructive"
+        });
+      }
+    };
+    reader.readAsText(file);
   };
 
   const uploadAnexo = async () => {
@@ -184,9 +335,9 @@ export function StockEntryModal({ open, onOpenChange, onSave }: Props) {
           </div>
 
           <div>
-            <Label>Anexar Nota Fiscal (PDF, Imagem)</Label>
+            <Label>Anexar Nota Fiscal (PDF, Imagem, XML)</Label>
             <div className="flex items-center gap-2 mt-1">
-              <Input type="file" onChange={handleFileChange} accept=".pdf,.jpg,.jpeg,.png" />
+              <Input type="file" onChange={handleFileChange} accept=".pdf,.jpg,.jpeg,.png,.xml" />
               {anexoFile && (
                 <span className="text-sm text-muted-foreground">{anexoFile.name}</span>
               )}
