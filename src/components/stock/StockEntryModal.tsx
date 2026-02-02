@@ -6,9 +6,18 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useSuppliers } from '@/hooks/useSuppliers';
 import { useProducts } from '@/hooks/useProducts';
+import { ProductFormModal } from '@/components/products/ProductFormModal';
 import { Plus, Trash2, Upload } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+
+interface PendingProduct {
+  cProd: string;
+  cEAN: string;
+  xProd: string;
+  qCom: number;
+  vUnCom: number;
+}
 
 interface StockEntryItem {
   product_variant_id: string;
@@ -34,6 +43,9 @@ export function StockEntryModal({ open, onOpenChange, onSave }: Props) {
   const [anexoFile, setAnexoFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [pendingProducts, setPendingProducts] = useState<PendingProduct[]>([]);
+  const [currentPendingProduct, setCurrentPendingProduct] = useState<PendingProduct | null>(null);
+  const [isProductModalOpen, setIsProductModalOpen] = useState(false);
 
   const addItem = () => {
     setItems([...items, { product_variant_id: undefined as any, quantidade: 1, custo_unit: 0 }]);
@@ -59,6 +71,65 @@ export function StockEntryModal({ open, onOpenChange, onSave }: Props) {
         parseNFeXML(file);
       }
     }
+  };
+
+  const processNextPendingProduct = (pendingList: PendingProduct[] = pendingProducts) => {
+    if (pendingList.length === 0) {
+      setPendingProducts([]);
+      setCurrentPendingProduct(null);
+      return;
+    }
+
+    const nextProduct = pendingList[0];
+    setCurrentPendingProduct(nextProduct);
+    setIsProductModalOpen(true);
+  };
+
+  const handleProductCreated = (product: any) => {
+    if (!currentPendingProduct || !product) return;
+
+    // Adicionar o produto criado à lista de itens
+    // Precisamos encontrar a variante correta. Assumindo que o produto criado tem variantes.
+    // O modal retorna o produto completo.
+    
+    let variantId = '';
+    if (product.variants && product.variants.length > 0) {
+      // Tentar encontrar a variante que corresponde aos dados pendentes
+      const variant = product.variants.find((v: any) => 
+        (currentPendingProduct.cEAN && v.ean === currentPendingProduct.cEAN) ||
+        (currentPendingProduct.cProd && v.cod_fabricante === currentPendingProduct.cProd)
+      );
+      
+      if (variant) {
+        variantId = variant.id;
+      } else {
+        // Se não encontrar correspondência exata, usar a primeira variante
+        variantId = product.variants[0].id;
+      }
+    }
+
+    if (variantId) {
+      setItems(prevItems => [...prevItems, {
+        product_variant_id: variantId,
+        quantidade: currentPendingProduct.qCom,
+        custo_unit: currentPendingProduct.vUnCom
+      }]);
+
+      toast({
+        title: "Produto adicionado",
+        description: `${product.nome} foi cadastrado e adicionado à nota.`,
+      });
+    }
+
+    // Processar próximo produto
+    const remainingProducts = pendingProducts.slice(1);
+    setPendingProducts(remainingProducts);
+    setIsProductModalOpen(false);
+    
+    // Pequeno delay para garantir que o modal feche antes de abrir o próximo (se houver)
+    setTimeout(() => {
+      processNextPendingProduct(remainingProducts);
+    }, 500);
   };
 
   const parseNFeXML = (file: File) => {
@@ -174,14 +245,16 @@ export function StockEntryModal({ open, onOpenChange, onSave }: Props) {
         // 4. Itens
         const dets = xmlDoc.getElementsByTagName("det");
         const newItems: StockEntryItem[] = [];
+        const pendingItems: PendingProduct[] = [];
 
         for (let i = 0; i < dets.length; i++) {
           const det = dets[i];
           const prod = det.getElementsByTagName("prod")[0];
           if (!prod) continue;
 
-          const cProd = prod.getElementsByTagName("cProd")[0]?.textContent;
-          const cEAN = prod.getElementsByTagName("cEAN")[0]?.textContent;
+          const cProd = prod.getElementsByTagName("cProd")[0]?.textContent || '';
+          const cEAN = prod.getElementsByTagName("cEAN")[0]?.textContent || '';
+          const xProd = prod.getElementsByTagName("xProd")[0]?.textContent || '';
           const qCom = parseFloat(prod.getElementsByTagName("qCom")[0]?.textContent || "0");
           const vUnCom = parseFloat(prod.getElementsByTagName("vUnCom")[0]?.textContent || "0");
 
@@ -199,18 +272,46 @@ export function StockEntryModal({ open, onOpenChange, onSave }: Props) {
             if (match) matchedVariantId = match.variant_id;
           }
 
-          newItems.push({
-            product_variant_id: matchedVariantId, // vazio se não encontrar
-            quantidade: qCom,
-            custo_unit: vUnCom
-          });
+          if (matchedVariantId) {
+            newItems.push({
+              product_variant_id: matchedVariantId,
+              quantidade: qCom,
+              custo_unit: vUnCom
+            });
+          } else {
+            pendingItems.push({
+              cProd,
+              cEAN: cEAN === "SEM GTIN" ? "" : cEAN,
+              xProd,
+              qCom,
+              vUnCom
+            });
+          }
         }
 
         if (newItems.length > 0) {
-          setItems(newItems);
+          setItems(prev => [...prev, ...newItems]);
+        }
+
+        if (pendingItems.length > 0) {
+          setPendingProducts(pendingItems);
+          
+          toast({
+            title: "Produtos não cadastrados",
+            description: `${pendingItems.length} itens não foram encontrados e precisarão ser cadastrados.`,
+          });
+
+          // Iniciar fluxo de cadastro para o primeiro item
+          // setTimeout para garantir que o usuário veja a mensagem antes do modal abrir
+          setTimeout(() => {
+            processNextPendingProduct(pendingItems);
+          }, 1500);
+        }
+
+        if (newItems.length > 0 || pendingItems.length > 0) {
           toast({
             title: "Nota Fiscal processada",
-            description: `${newItems.length} itens identificados no arquivo.`,
+            description: `${newItems.length} itens identificados e ${pendingItems.length} novos produtos para cadastrar.`,
           });
         }
 
@@ -315,13 +416,14 @@ export function StockEntryModal({ open, onOpenChange, onSave }: Props) {
   const total = items.reduce((sum, item) => sum + item.quantidade * item.custo_unit, 0);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Lançar Nota Fiscal de Entrada</DialogTitle>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Lançar Nota Fiscal de Entrada</DialogTitle>
+          </DialogHeader>
 
-        <div className="space-y-4">
+          <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label>Número da Nota</Label>
@@ -460,5 +562,23 @@ export function StockEntryModal({ open, onOpenChange, onSave }: Props) {
         </div>
       </DialogContent>
     </Dialog>
+
+    {isProductModalOpen && currentPendingProduct && (
+      <ProductFormModal
+        open={isProductModalOpen}
+        onOpenChange={setIsProductModalOpen}
+        mode="create"
+        initialSku={currentPendingProduct.cProd}
+        initialEan={currentPendingProduct.cEAN}
+        initialData={{
+          nome: currentPendingProduct.xProd,
+          preco_custo: currentPendingProduct.vUnCom,
+          cod_fabricante: currentPendingProduct.cProd,
+          supplier_id: supplierId
+        }}
+        onSuccess={handleProductCreated}
+      />
+    )}
+  </>
   );
 }

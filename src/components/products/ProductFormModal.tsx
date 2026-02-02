@@ -24,7 +24,13 @@ interface ProductFormModalProps {
   mode: 'create' | 'edit' | 'view';
   initialSku?: string;
   initialEan?: string;
-  onSuccess?: () => void; // Callback para quando o produto for salvo com sucesso
+  initialData?: {
+    nome?: string;
+    preco_custo?: number;
+    cod_fabricante?: string;
+    supplier_id?: string;
+  };
+  onSuccess?: (product: any) => void; // Callback para quando o produto for salvo com sucesso
 }
 
 interface VariantForm {
@@ -42,7 +48,7 @@ interface VariantForm {
   estoque_minimo: number;
 }
 
-export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialSku, initialEan, onSuccess }: ProductFormModalProps) => {
+export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialSku, initialEan, initialData, onSuccess }: ProductFormModalProps) => {
   const { toast } = useToast();
   const { groups, createProduct, updateProduct, createVariant, updateVariant: updateVariantAPI, uploadProductImage, addProductImageUrl, getProduct } = useProducts();
   const { brands } = useBrands();
@@ -51,21 +57,21 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
   const [loadingProduct, setLoadingProduct] = useState(false);
   
   const [formData, setFormData] = useState({
-    nome: '',
+    nome: initialData?.nome || '',
     descricao: '',
     grupo_id: '',
     cod_interno: '',
     brand_id: '',
-    supplier_id: '',
+    supplier_id: initialData?.supplier_id || '',
   });
 
   const [variants, setVariants] = useState<VariantForm[]>([{
     sku: initialSku || '',
     ean: initialEan || '',
-    cod_fabricante: '',
+    cod_fabricante: initialData?.cod_fabricante || '',
     tamanho: '',
     cor: '',
-    preco_custo: 0,
+    preco_custo: initialData?.preco_custo || 0,
     margem_lucro: 0,
     preco_base: 0,
     preco_manual: false, // Por padrão, preço é calculado automaticamente
@@ -128,7 +134,7 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
       
       // Chamar callback de sucesso se fornecido
       if (onSuccess) {
-        onSuccess();
+        onSuccess(product);
       }
     } catch (error) {
       console.error('Error saving product:', error);
@@ -139,20 +145,20 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
 
   const resetForm = useCallback(() => {
     setFormData({
-      nome: '',
+      nome: initialData?.nome || '',
       descricao: '',
       grupo_id: '',
       cod_interno: '',
       brand_id: '',
-      supplier_id: '',
+      supplier_id: initialData?.supplier_id || '',
     });
     setVariants([{
       sku: initialSku || '',
       ean: initialEan || '',
-      cod_fabricante: '',
+      cod_fabricante: initialData?.cod_fabricante || '',
       tamanho: '',
       cor: '',
-      preco_custo: 0,
+      preco_custo: initialData?.preco_custo || 0,
       margem_lucro: 0,
       preco_base: 0,
       preco_manual: false,
@@ -162,7 +168,7 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
     setImages([]);
     setImageUrls([]);
     setCurrentImageUrl('');
-  }, [initialSku, initialEan]);
+  }, [initialSku, initialEan, initialData]);
 
   const addVariant = () => {
     setVariants([...variants, {
