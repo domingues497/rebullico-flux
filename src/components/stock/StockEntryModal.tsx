@@ -10,6 +10,10 @@ import { ProductFormModal } from '@/components/products/ProductFormModal';
 import { Plus, Trash2, Upload } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import * as pdfjsLib from 'pdfjs-dist';
+
+// Configurar worker do PDF.js
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.js`;
 
 interface PendingProduct {
   cProd: string;
@@ -69,6 +73,8 @@ export function StockEntryModal({ open, onOpenChange, onSave }: Props) {
       // Se for XML, tentar ler e preencher campos
       if (file.name.toLowerCase().endsWith('.xml')) {
         parseNFeXML(file);
+      } else if (file.name.toLowerCase().endsWith('.pdf')) {
+        parseNFePDF(file);
       }
     }
   };
@@ -128,11 +134,255 @@ export function StockEntryModal({ open, onOpenChange, onSave }: Props) {
     
     // Pequeno delay para garantir que o modal feche antes de abrir o próximo (se houver)
     setTimeout(() => {
-      processNextPendingProduct(remainingProducts);
-    }, 500);
-  };
+        processNextPendingProduct(remainingProducts);
+      }, 500);
+    };
 
-  const parseNFeXML = (file: File) => {
+    const parseNFePDF = async (file: File) => {
+      try {
+        setLoading(true);
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        
+        let fullText = '';
+        
+        // Extrair texto de todas as páginas
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const textContent = await page.getTextContent();
+          const items = textContent.items as any[];
+          
+          // Agrupar itens por linha (coordenada Y)
+          // Tolerância maior para agrupar itens na mesma linha visual
+          const lines: { y: number, text: string }[] = [];
+          
+          items.forEach(item => {
+            const y = item.transform[5]; // transform[5] é a tradução Y
+            const existingLine = lines.find(l => Math.abs(l.y - y) < 4); // Tolerância de 4 unidades
+            if (existingLine) {
+              existingLine.text += ' ' + item.str;
+            } else {
+              lines.push({ y, text: item.str });
+            }
+          });
+          
+          // Ordenar linhas de cima para baixo (maior Y para menor Y)
+          lines.sort((a, b) => b.y - a.y);
+          
+          fullText += lines.map(l => l.text).join('\n') + '\n';
+        }
+
+        console.log("PDF Content:", fullText);
+
+        // Processar dados extraídos
+        // 1. Número da Nota
+        const nNFMatch = fullText.match(/N[ºo°]\.?\s*(\d{3}\.?\d{3}\.?\d{3}|\d+)/i);
+        if (nNFMatch) {
+          setNumeroNota(nNFMatch[1].replace(/\D/g, ''));
+        }
+
+        // 2. Data de Emissão
+        const dataMatch = fullText.match(/Data\s+(?:de\s+)?Emissão[:\s]*(\d{2}\/\d{2}\/\d{4})/i);
+        if (dataMatch) {
+          const [dia, mes, ano] = dataMatch[1].split('/');
+          setData(`${ano}-${mes}-${dia}`);
+        }
+
+        // 3. Fornecedor (CNPJ)
+        const cnpjMatch = fullText.match(/CNPJ[:\s]*(\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2})/i);
+        if (cnpjMatch) {
+          const cleanCnpj = cnpjMatch[1].replace(/\D/g, '');
+          const foundSupplier = suppliers.find(s => s.cnpj_cpf?.replace(/\D/g, '') === cleanCnpj);
+          
+          if (foundSupplier) {
+            setSupplierId(foundSupplier.id);
+          } else {
+             // Tentar extrair nome do fornecedor (heurística: geralmente primeira linha ou perto do CNPJ)
+             // Simplificação: Avisar usuário
+             toast({
+               title: "Fornecedor não encontrado",
+               description: `CNPJ ${cnpjMatch[1]} não cadastrado. Cadastre o fornecedor manualmente.`,
+             });
+          }
+        }
+
+        // 4. Produtos
+        const newItems: StockEntryItem[] = [];
+        const pendingItems: PendingProduct[] = [];
+
+        // Regex para tentar identificar linhas de produtos
+        // Exemplo típico: CÓDIGO DESCRIÇÃO ... UN QTD VALOR ...
+        // Procura por linhas que terminam com sequência de números (valores monetários)
+        
+        const lines = fullText.split('\n');
+        let productsStarted = false;
+
+        for (const line of lines) {
+          // Tentar detectar início da seção de produtos
+          if (line.match(/DADOS DO PRODUTO|CÓDIGO/i)) {
+            productsStarted = true;
+            continue;
+          }
+
+          if (!productsStarted) continue;
+          if (line.match(/CÁLCULO DO ISSQN|DADOS ADICIONAIS/i)) break;
+
+          // Tentativa de parsear linha de produto
+          // Procura por um padrão: Código (opcional) + Descrição + ... + Qtd + Valor Unit + Valor Total
+          // Essa regex é bem genérica e pode precisar de ajustes dependendo do layout da nota
+          
+          // Estratégia: Encontrar os últimos números da linha (Total, Valor Unit, Qtd)
+          // Exemplo linha: 123 CAMISETA 0600 5102 UN 10,00 50,00 500,00
+          
+          // Regex explicada:
+          // (.*?) -> Captura tudo até os números finais (Código + Descrição + NCM etc)
+          // (\d+(?:[.,]\d+)?)\s+ -> Qtd (assumindo que vem antes do unitário)
+          // (\d+(?:[.,]\d+)?)\s+ -> Valor Unit
+          // (\d+(?:[.,]\d+)?)\s*$ -> Valor Total (final da linha)
+          
+          // Nota: Em PDFs o espaçamento pode variar, e campos como UN podem estar no meio
+          
+          // Vamos tentar uma abordagem mais robusta: procurar por sequencias numéricas no fim da linha
+          const numberPattern = /(\d+(?:[.,]\d+)?)/g;
+          const numbers = line.match(numberPattern);
+          
+          if (numbers && numbers.length >= 3) {
+            // Assumindo os últimos 3 números como: Qtd, Unitário, Total (ou Unitário, Total, Base Calc...)
+            // Layout comum DANFE paisagem: ... Qtd ... V.Unit ... V.Total ... Bc.Icms ...
+            // Mas varia muito. Vamos tentar pegar Qtd e V.Unit
+            
+            // Geralmente Qtd e V.Unit estão próximos.
+            // Vamos tentar extrair pelo contexto da linha
+            
+            // Simplificação: Pegar description do começo
+            // Código geralmente é a primeira "palavra"
+            const parts = line.trim().split(/\s+/);
+            if (parts.length < 5) continue; // Linha muito curta
+
+            const cProd = parts[0];
+            
+            // Tentar identificar onde estão os valores
+            // V.Unit costuma ter casas decimais
+            
+            // Vamos usar uma heurística baseada na posição dos tokens numéricos
+            // Pegar os tokens que parecem números com decimais
+            const numericTokens = parts.map((p, i) => ({ 
+              val: parseFloat(p.replace(',', '.')), 
+              text: p, 
+              index: i,
+              isDecimal: p.includes(',') || p.includes('.')
+            })).filter(t => !isNaN(t.val));
+
+            if (numericTokens.length >= 2) {
+              // Assumir que Qtd é um número (pode ser int ou decimal) e V.Unit é decimal
+              // Geralmente Qtd vem antes de V.Unit
+              
+              // Vamos pegar os dois números que multiplicados dão o terceiro (Total)?
+              // Qtd * Unit = Total
+              
+              let qCom = 0;
+              let vUnCom = 0;
+              let foundMath = false;
+
+              for (let i = 0; i < numericTokens.length - 2; i++) {
+                const a = numericTokens[i].val;
+                const b = numericTokens[i+1].val;
+                const c = numericTokens[i+2].val;
+                
+                // Checar se a * b ~= c (com margem de erro)
+                if (Math.abs(a * b - c) < 0.05) {
+                   qCom = a;
+                   vUnCom = b;
+                   foundMath = true;
+                   break;
+                }
+              }
+
+              if (!foundMath) {
+                // Fallback: Tentar pegar números "razoáveis" no meio da linha
+                // Geralmente Qtd é o primeiro número após a descrição (que é texto)
+                // Mas descrição pode ter números.
+                // Difícil sem OCR estruturado.
+                continue; 
+              }
+
+              // Extrair descrição: tudo entre cProd e o token da quantidade?
+              // Não temos o índice original fácil aqui pois usamos regex/split
+              // Vamos reconstruir
+              
+              // Simplificação: xProd é tudo entre parts[1] e o índice do qCom
+              // Isso é frágil.
+              
+              // Melhor: xProd é o texto que sobra removendo o código e os números do fim?
+              const xProd = parts.slice(1, parts.length - 5).join(' '); // Chute grosseiro
+              
+              // Verificar se produto existe
+              let matchedVariantId = '';
+              const match = products.find(p => p.cod_fabricante === cProd || p.sku === cProd);
+              if (match) matchedVariantId = match.variant_id;
+
+              if (matchedVariantId) {
+                newItems.push({
+                  product_variant_id: matchedVariantId,
+                  quantidade: qCom,
+                  custo_unit: vUnCom
+                });
+              } else {
+                pendingItems.push({
+                  cProd,
+                  cEAN: '', // Difícil extrair EAN de PDF se não estiver explícito
+                  xProd: xProd || 'Produto sem descrição identificada',
+                  qCom,
+                  vUnCom
+                });
+              }
+            }
+          }
+        }
+
+        if (newItems.length > 0) {
+          setItems(prev => [...prev, ...newItems]);
+        }
+
+        if (pendingItems.length > 0) {
+          setPendingProducts(pendingItems);
+          
+          toast({
+            title: "Produtos não cadastrados (PDF)",
+            description: `${pendingItems.length} itens identificados. Verifique os dados.`,
+          });
+
+          setTimeout(() => {
+            processNextPendingProduct(pendingItems);
+          }, 1500);
+        }
+
+        if (newItems.length > 0 || pendingItems.length > 0) {
+           toast({
+            title: "PDF processado",
+            description: `${newItems.length + pendingItems.length} itens encontrados.`,
+          });
+        } else {
+           toast({
+            title: "Nenhum item encontrado",
+            description: "Não foi possível identificar produtos no PDF automaticamente.",
+            variant: "destructive"
+          });
+        }
+
+      } catch (error) {
+        console.error("Erro ao processar PDF:", error);
+        toast({
+          title: "Erro no PDF",
+          description: "Falha ao processar o arquivo. Tente um XML.",
+          variant: "destructive"
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    const parseNFeXML = (file: File) => {
     const reader = new FileReader();
     reader.onload = async (e) => {
       const text = e.target?.result as string;
