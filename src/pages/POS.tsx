@@ -534,26 +534,7 @@ const POS = () => {
                   </span>
                 </Button>
                 
-                <div className="grid grid-cols-2 gap-2">
-                  <Button 
-                    variant="outline"
-                    className="h-9"
-                    disabled={cartItems.length === 0}
-                    onClick={() => setIsPaymentModalOpen(true)}
-                  >
-                    <CreditCard className="mr-1 h-3 w-3" />
-                    <span className="text-xs">Cartão</span>
-                  </Button>
-                  <Button 
-                    variant="outline"
-                    className="h-9"
-                    onClick={() => setShowKeypad(!showKeypad)}
-                    disabled={cartItems.length === 0}
-                  >
-                    <span className="mr-1 text-xs">🔢</span>
-                    <span className="text-xs">Teclado</span>
-                  </Button>
-                </div>
+                
               </div>
             </CardContent>
           </Card>
