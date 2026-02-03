@@ -431,6 +431,9 @@ const Settings = () => {
           </CardContent>
         </Card>
 
+        {/* Mercado Livre Integration */}
+        <MercadoLivreConnect />
+
         {/* Payment Methods */}
         <Card className="card-elevated">
           <CardHeader>

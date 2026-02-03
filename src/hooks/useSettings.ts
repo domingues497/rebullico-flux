@@ -89,7 +89,7 @@ export const useSettings = () => {
   };
 
   const updateSettings = async (updates: SettingsUpdate) => {
-    if (!settings) return;
+    if (!settings) return false;
     
     setLoading(true);
     try {
@@ -99,16 +99,11 @@ export const useSettings = () => {
         .eq('id', settings.id)
         .select()
         .single();
-
+      
       if (error) throw error;
       
       setSettings(data);
-      toast({
-        title: "Sucesso",
-        description: "Configurações atualizadas com sucesso"
-      });
-
-      return data;
+      return true;
     } catch (error: unknown) {
       console.error('Error updating settings:', error);
       toast({
@@ -116,7 +111,7 @@ export const useSettings = () => {
         description: "Erro ao atualizar configurações",
         variant: "destructive"
       });
-      throw error;
+      return false;
     } finally {
       setLoading(false);
     }
