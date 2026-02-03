@@ -36,7 +36,7 @@ import type { Settings } from "@/types/settings";
 import PaymentMethodFormModal from "@/components/settings/PaymentMethodFormModal";
 import AcquirerFeeFormModal from "@/components/settings/AcquirerFeeFormModal";
 import { MercadoLivreConnect } from "@/components/settings/MercadoLivreConnect";
-import { Pencil } from "lucide-react";
+ 
 
 const Settings = () => {
   const { paymentMethods, createPaymentMethod, updatePaymentMethod, deletePaymentMethod } = usePaymentMethods();
