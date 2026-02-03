@@ -555,7 +555,6 @@ const Settings = () => {
         </Card>
 
         {/* Integrations */}
-        <MercadoLivreConnect />
 
         {/* Receipt Settings */}
         <Card className="card-elevated">
