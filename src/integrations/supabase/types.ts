@@ -169,6 +169,39 @@ export type Database = {
           },
         ]
       }
+      integrations: {
+        Row: {
+          id: string
+          provider: string
+          access_token: string
+          refresh_token: string
+          expires_at: string
+          user_id: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          provider: string
+          access_token: string
+          refresh_token: string
+          expires_at: string
+          user_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          provider?: string
+          access_token?: string
+          refresh_token?: string
+          expires_at?: string
+          user_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       payables: {
         Row: {
           created_at: string

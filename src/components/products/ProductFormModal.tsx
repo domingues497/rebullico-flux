@@ -27,8 +27,10 @@ interface ProductFormModalProps {
   initialData?: {
     nome?: string;
     preco_custo?: number;
+    preco_venda?: number;
     cod_fabricante?: string;
     supplier_id?: string;
+    ean?: string;
   };
   onSuccess?: (product: any) => void; // Callback para quando o produto for salvo com sucesso
 }
@@ -67,14 +69,14 @@ export const ProductFormModal = ({ open, onOpenChange, productId, mode, initialS
 
   const [variants, setVariants] = useState<VariantForm[]>([{
     sku: initialSku || '',
-    ean: initialEan || '',
+    ean: initialData?.ean || initialEan || '',
     cod_fabricante: initialData?.cod_fabricante || '',
     tamanho: '',
     cor: '',
     preco_custo: initialData?.preco_custo || 0,
     margem_lucro: 0,
-    preco_base: 0,
-    preco_manual: false, // Por padrão, preço é calculado automaticamente
+    preco_base: initialData?.preco_venda || 0,
+    preco_manual: !!initialData?.preco_venda, // Se veio preço de venda, marcar como manual
     estoque_atual: 0,
     estoque_minimo: 0
   }]);

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -24,6 +25,7 @@ interface Props {
 
 export function MercadoLivrePublishModal({ open, onOpenChange, product }: Props) {
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const [title, setTitle] = useState('');
   const [categoryId, setCategoryId] = useState('');
@@ -32,6 +34,24 @@ export function MercadoLivrePublishModal({ open, onOpenChange, product }: Props)
   const [description, setDescription] = useState('');
   const [picturesText, setPicturesText] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isConnected, setIsConnected] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(true);
+
+  useEffect(() => {
+    if (open) {
+      checkAuth();
+    }
+  }, [open]);
+
+  const checkAuth = async () => {
+    setCheckingAuth(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data } = await supabase.from('integrations').select('id').eq('provider', 'mercadolivre').eq('user_id', user.id).maybeSingle();
+      setIsConnected(!!data);
+    }
+    setCheckingAuth(false);
+  };
 
   useEffect(() => {
     if (product) {
@@ -111,6 +131,26 @@ export function MercadoLivrePublishModal({ open, onOpenChange, product }: Props)
         </DialogHeader>
 
         <div className="space-y-4">
+          {!checkingAuth && !isConnected && (
+            <div className="bg-amber-50 border-l-4 border-amber-500 p-4">
+              <div className="flex flex-col">
+                <p className="text-sm text-amber-700 mb-2">
+                  Você precisa conectar sua conta do Mercado Livre antes de publicar.
+                </p>
+                <Button 
+                  variant="outline" 
+                  className="w-fit border-amber-500 text-amber-700 hover:bg-amber-100"
+                  onClick={() => {
+                      onOpenChange(false);
+                      navigate('/settings');
+                  }}
+                >
+                  Conectar agora
+                </Button>
+              </div>
+            </div>
+          )}
+
           <div>
             <Label>Título</Label>
             <Input value={title} onChange={e => setTitle(e.target.value)} />
@@ -152,7 +192,7 @@ export function MercadoLivrePublishModal({ open, onOpenChange, product }: Props)
 
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancelar</Button>
-            <Button onClick={handlePublish} disabled={loading}>{loading ? 'Publicando...' : 'Publicar'}</Button>
+            <Button onClick={handlePublish} disabled={loading || !isConnected}>{loading ? 'Publicando...' : 'Publicar'}</Button>
           </div>
         </div>
       </DialogContent>

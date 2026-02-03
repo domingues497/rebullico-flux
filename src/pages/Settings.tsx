@@ -35,6 +35,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { Settings } from "@/types/settings";
 import PaymentMethodFormModal from "@/components/settings/PaymentMethodFormModal";
 import AcquirerFeeFormModal from "@/components/settings/AcquirerFeeFormModal";
+import { MercadoLivreConnect } from "@/components/settings/MercadoLivreConnect";
 import { Pencil } from "lucide-react";
 
 const Settings = () => {
@@ -549,6 +550,9 @@ const Settings = () => {
             </Table>
           </CardContent>
         </Card>
+
+        {/* Integrations */}
+        <MercadoLivreConnect />
 
         {/* Receipt Settings */}
         <Card className="card-elevated">

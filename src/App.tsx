@@ -15,6 +15,7 @@ import StockEntries from './pages/StockEntries';
 import Suppliers from './pages/Suppliers';
 import NotFound from './pages/NotFound';
 import Login from "./pages/Login";
+import MercadoLivreCallback from "./pages/MercadoLivreCallback";
 import { Capacitor } from '@capacitor/core';
 
 const queryClient = new QueryClient();
@@ -104,6 +105,11 @@ function AppRoutes() {
       <Route path="/suppliers" element={
         <ProtectedRoute>
           <Suppliers />
+        </ProtectedRoute>
+      } />
+      <Route path="/integrations/callback" element={
+        <ProtectedRoute>
+          <MercadoLivreCallback />
         </ProtectedRoute>
       } />
       <Route path="*" element={<NotFound />} />
