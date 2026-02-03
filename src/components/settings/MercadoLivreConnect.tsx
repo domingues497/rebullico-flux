@@ -44,7 +44,7 @@ export function MercadoLivreConnect() {
     try {
       // You should set VITE_MELI_APP_ID in your .env
       const appId = import.meta.env.VITE_MELI_APP_ID; 
-      const redirectUri = `${window.location.origin}/integrations/callback`;
+      const redirectUri = import.meta.env.VITE_MELI_REDIRECT_URI || `${window.location.origin}/integrations/callback`;
       
       if (!appId) {
         toast({

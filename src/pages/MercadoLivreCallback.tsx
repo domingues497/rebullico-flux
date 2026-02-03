@@ -23,7 +23,7 @@ export default function MercadoLivreCallback() {
 
   const exchangeToken = async (code: string) => {
     try {
-      const redirectUri = `${window.location.origin}/integrations/callback`;
+      const redirectUri = import.meta.env.VITE_MELI_REDIRECT_URI || `${window.location.origin}/integrations/callback`;
       
       const { data, error } = await supabase.functions.invoke('mercado-livre-auth', {
         body: { code, redirect_uri: redirectUri }
