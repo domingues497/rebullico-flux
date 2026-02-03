@@ -13,6 +13,17 @@ export default function MercadoLivreCallback() {
 
   useEffect(() => {
     const code = searchParams.get("code");
+    const statusParam = searchParams.get("status");
+
+    if (statusParam === 'success') {
+      setStatus('success');
+      toast({ title: "Sucesso", description: "Conta Mercado Livre conectada!" });
+      setTimeout(() => {
+        navigate('/settings');
+      }, 2000);
+      return;
+    }
+
     if (code) {
       exchangeToken(code);
     } else {

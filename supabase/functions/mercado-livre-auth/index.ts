@@ -7,28 +7,14 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    const { code, redirect_uri } = await req.json()
-    
-    // Create Supabase client with the user's auth token
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
-    )
-
-    // Get User ID from Supabase auth to ensure user is logged in
-    const {
-      data: { user },
-      error: userError
-    } = await supabaseClient.auth.getUser()
-
-    if (userError || !user) throw new Error('User not authenticated')
-
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     const appId = Deno.env.get('MELI_APP_ID')
     const clientSecret = Deno.env.get('MELI_CLIENT_SECRET')
 
@@ -36,9 +22,93 @@ serve(async (req) => {
       throw new Error('MELI_APP_ID or MELI_CLIENT_SECRET not set in Edge Function secrets')
     }
 
+    // Handle GET request (OAuth Callback from Mercado Livre)
+    if (req.method === 'GET') {
+      const url = new URL(req.url)
+      const code = url.searchParams.get('code')
+      const state = url.searchParams.get('state') // Contains encoded JSON { userId, redirectUrl }
+
+      if (!code || !state) {
+        return new Response('Missing code or state parameters', { status: 400 })
+      }
+
+      let stateData
+      try {
+        stateData = JSON.parse(atob(state))
+      } catch (e) {
+        return new Response('Invalid state parameter', { status: 400 })
+      }
+
+      const { userId, redirectUrl } = stateData
+      
+      // The redirect_uri sent to get the token MUST match the one used in the auth URL
+      // Since this function IS the redirect_uri, we use its own URL (without query params)
+      const functionUrl = `${url.origin}${url.pathname}`
+
+      console.log(`Exchanging code for token. Redirect URI: ${functionUrl}`)
+
+      const tokenRes = await fetch('https://api.mercadolibre.com/oauth/token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Accept': 'application/json'
+        },
+        body: new URLSearchParams({
+          grant_type: 'authorization_code',
+          client_id: appId,
+          client_secret: clientSecret,
+          code: code,
+          redirect_uri: functionUrl
+        })
+      })
+
+      const tokenData = await tokenRes.json()
+
+      if (!tokenRes.ok) {
+        console.error('ML Token Error:', tokenData)
+        return new Response(`Mercado Livre Auth Error: ${JSON.stringify(tokenData)}`, { status: 400 })
+      }
+
+      // Save to database using Service Role (since we don't have user session in GET request)
+      const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
+
+      const { error: upsertError } = await supabaseAdmin
+        .from('integrations')
+        .upsert({
+          provider: 'mercadolivre',
+          access_token: tokenData.access_token,
+          refresh_token: tokenData.refresh_token,
+          expires_at: new Date(Date.now() + tokenData.expires_in * 1000).toISOString(),
+          user_id: userId
+        }, {
+          onConflict: 'provider,user_id'
+        })
+
+      if (upsertError) {
+        console.error('Database Error:', upsertError)
+        return new Response('Database Error', { status: 500 })
+      }
+
+      // Redirect back to the application
+      return Response.redirect(`${redirectUrl}?status=success`)
+    }
+
+    // Handle POST request (Manual/Client-side exchange - Legacy support)
+    const { code, redirect_uri } = await req.json()
+    
+    // Create Supabase client with the user's auth token
+    const supabaseClient = createClient(
+      supabaseUrl,
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
+    )
+
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser()
+
+    if (userError || !user) throw new Error('User not authenticated')
+
     console.log(`Exchanging code for token with redirect_uri: ${redirect_uri}`)
 
-    // Exchange code for token
     const tokenRes = await fetch('https://api.mercadolibre.com/oauth/token', {
       method: 'POST',
       headers: {
@@ -61,14 +131,8 @@ serve(async (req) => {
       throw new Error(tokenData.message || 'Failed to get token from Mercado Livre')
     }
 
-    // Use Service Role to write to integrations table securely (bypassing RLS if needed, but here we act as user so RLS should work if we use supabaseClient. However, integration table might have strict policies. 
-    // Let's use service role to be safe and ensure we can upsert.)
-    const supabaseAdmin = createClient(
-        Deno.env.get('SUPABASE_URL') ?? '',
-        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
 
-    // Save to database
     const { error: upsertError } = await supabaseAdmin
       .from('integrations')
       .upsert({
@@ -82,8 +146,8 @@ serve(async (req) => {
       })
 
     if (upsertError) {
-        console.error('Database Error:', upsertError)
-        throw new Error('Failed to save integration tokens')
+      console.error('Database Error:', upsertError)
+      throw new Error('Failed to save integration tokens')
     }
 
     return new Response(

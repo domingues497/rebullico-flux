@@ -56,7 +56,25 @@ export function MercadoLivreConnect() {
         return;
       }
 
-      const authUrl = `https://auth.mercadolivre.com.br/authorization?response_type=code&client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}`;
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        toast({
+            title: "Erro de autenticação",
+            description: "Você precisa estar logado para conectar.",
+            variant: "destructive"
+        });
+        setLoading(false);
+        return;
+      }
+
+      // Encode state with userId and final redirect URL
+      const state = btoa(JSON.stringify({
+          userId: user.id,
+          redirectUrl: `${window.location.origin}/integrations/callback`
+      }));
+
+      const authUrl = `https://auth.mercadolivre.com.br/authorization?response_type=code&client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}`;
       
       // Redirect to ML Auth
       window.location.href = authUrl;
